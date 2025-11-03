@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/themeStore";
 import { options } from "../helper/fetchOptions.js";
+import { jwtDecode } from "jwt-decode";
 
 export default function ChatLayout() {
   const logout = useAuthStore((s) => s.logout);
@@ -10,8 +11,15 @@ export default function ChatLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [chat, setChat] = useState([]);
   const [message, setMessage] = useState("");
-  const username = "harshit";
-  const room = "game";
+  const [allRoom, setAllRoom] = useState([]);
+  let [room, setRoom] = useState("game");
+  let username;
+  const token = localStorage.getItem("token");
+  if (token) {
+    const jwt_token = jwtDecode(token);
+    username = jwt_token.sub;
+  }
+
   let ws = useRef<WebSocket | null>(null);
   useEffect(() => {
     const get_data = async () => {
@@ -27,7 +35,6 @@ export default function ChatLayout() {
         }
 
         let data = await res.json();
-        console.log("chat......", data);
         setChat(data);
       } catch (error) {
         console.log(error);
@@ -35,16 +42,16 @@ export default function ChatLayout() {
     };
     get_data();
   }, []);
+
   useEffect(() => {
+    ws.current?.close();
+
     ws.current = new WebSocket(
       `ws://127.0.0.1:8000/chat/ws/${room}/${username}`
     );
-
     ws.current.onopen = () => console.log("WebSocket connected");
     ws.current.onmessage = (event) => {
-      console.log("event datata >>", event.data);
       const new_obj = { sender: username, content: event.data };
-      console.log(new_obj);
 
       setChat((prev) => [...prev, new_obj]);
     };
@@ -55,16 +62,50 @@ export default function ChatLayout() {
       ws.current.close();
     };
   }, [room, username]);
-  const send = () => {
-    console.log(message);
 
+  const selectedRoom = (e) => {
+    const newRoom = e.currentTarget.dataset.name;
+    setRoom(newRoom);
+  };
+  useEffect(() => {
+    const getRoom = async () => {
+      const url = "http://127.0.0.1:8000/chat/get_room";
+      const options = {
+        method: "GET",
+        header: { "Content-Type": "application/json" },
+      };
+      const res = await fetch(url, options);
+      const data = await res.json();
+      setAllRoom(data);
+    };
+    getRoom();
+  }, []);
+
+  const send = () => {
     if (ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(message);
     }
+    setMessage("");
   };
   const handleChat = (e) => {
     setMessage(e.target.value);
   };
+  const handleNewRoom = async () => {
+    const url = `http://127.0.0.1:8000/chat/create_room`;
+
+    const data = {
+      name: "study",
+      description: "its for stduies",
+    };
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    };
+    const res = await fetch(url, options);
+    const ans = await res.json();
+  };
+
   return (
     <div className="app-shell">
       <aside className={"sidebar" + (isSidebarOpen ? " open" : "")}>
@@ -76,9 +117,22 @@ export default function ChatLayout() {
           <button className="tab">DM</button>
         </div>
         <div className="channel-list">
-          <div className="channel-item active">kaushik</div>
+          {allRoom.map((indi) => {
+            return (
+              <div
+                className="channel-item"
+                onClick={selectedRoom}
+                data-name={indi.name}
+              >
+                {indi.name}
+              </div>
+            );
+          })}
+
           <div className="channel-item">general</div>
-          <div className="channel-item">random</div>
+          <div className="channel-item" onClick={handleNewRoom}>
+            New room
+          </div>
         </div>
       </aside>
       {isSidebarOpen && (
@@ -117,7 +171,11 @@ export default function ChatLayout() {
           <div className="message right">Hi, welcome 👋</div> */}
         </section>
         <footer className="chat-input">
-          <input placeholder="Type a message" onChange={handleChat} />
+          <input
+            placeholder="Type a message"
+            onChange={handleChat}
+            value={message}
+          />
           <button className="send" onClick={send}>
             Send
           </button>

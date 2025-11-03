@@ -15,7 +15,6 @@ from models.message import Message
 from schemas.user_schema import UserOut, UserResponse
 from schemas.room_schema import RoomCreate, RoomResponse
 from ws.connection_manager import ConnectionManager
-from fastapi.responses import FileResponse
 
 
 
@@ -23,11 +22,10 @@ from fastapi.responses import FileResponse
 
 router = APIRouter()
 manager = ConnectionManager()
-@router.get('/', response_model=list[UserResponse])
+@router.get('/')
 def get_all_user(db:Session = Depends(get_db)) :
-    all_user = db.query(User).all()
-    return FileResponse('static/index.html')
-
+    users = db.query(User).all()
+    return users
 @router.delete('/{id}')
 def delete_user(id ,  db:Session = Depends(get_db)) :
         get_user = db.query(User).filter(User.id == id ).first()
@@ -88,6 +86,7 @@ def create_room(data : RoomCreate , db:Session = Depends(get_db)):
         new_room = Room(name= data.name , description = data.description)
         db.add(new_room)
         db.commit()
+        return new_room
 
 
 
