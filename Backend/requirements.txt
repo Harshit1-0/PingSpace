@@ -1,10 +1,10 @@
-fastapi==0.103.2
-starlette==0.27.0
-pydantic==1.10.14
-uvicorn[standard]==0.23.2
+fastapi==0.115.5
+pydantic==2.9.2
+uvicorn==0.30.6
 sqlalchemy==2.0.21
 python-jose==3.3.0
 passlib==1.7.4
 cryptography==42.0.5
-python-dateutil==2.9.0.post0
-pytz==2024.2
+alembic==1.13.2
+bcrypt==4.1.2
+websockets==12.0
