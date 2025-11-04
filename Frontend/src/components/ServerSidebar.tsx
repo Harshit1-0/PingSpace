@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 type Server = { name: string; id: string; owner_id: string };
 
 type ServerProps = {

@@ -7,7 +7,6 @@ import ChatHeader from "../components/ChatHeader.js";
 import ChatScreen from "../components/ChatScreen.js";
 import { baseUrl } from "../helper/constant.js";
 import { options } from "../helper/fetchOptions.js";
-import ServerSidebar from "../components/ServerSidebar.js";
 
 export default function ChatLayout() {
   const logout = useAuthStore((s) => s.logout);
