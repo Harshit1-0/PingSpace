@@ -6,5 +6,5 @@ python-jose
 passlib
 cryptography
 alembic
-bcrypt
+bcrypt == 3.2.0
 websockets
