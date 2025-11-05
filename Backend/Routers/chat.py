@@ -101,13 +101,20 @@ def get_server(db:Session = Depends(get_db)) :
     servers = db.query(Server).all()
     return servers
 
-
-
 @router.get('/get_room' , response_model=list[RoomResponse] , tags=['room'])
 def get_room(db:Session = Depends(get_db)):
     get_room = db.query(Room).all()
     return get_room
 
+@router.delete('/delete_room/{id}' , tags = ['room'])
+def delete_room(id , db:Session = Depends(get_db)) :
+    get_room = db.query(Room).filter(Room.id == id).first()
+    if(get_room) :
+         db.delete(get_room)
+         db.commit()
+         return get_room
+    else :
+         return "There is no room like this"
 @router.get('/get_message/')
 def get_message(db:Session = Depends(get_db)) :
     get_all = db.query(Message).all()
