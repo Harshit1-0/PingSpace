@@ -1,0 +1,142 @@
+# ----------------------------- Backend
+
+# Python
+
+# -----------------------------
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+# -----------------------------
+
+# Virtual Environments
+
+# -----------------------------
+
+.venv/
+
+venv/
+
+ENV/
+
+env/
+
+test/        # Your test/ folder looks like a venv
+
+test/*
+
+!test/*.py   # Keep Python test scripts if you add them later
+
+# -----------------------------
+
+# IDE / Editor settings
+
+# -----------------------------
+
+.vscode/
+
+.idea/
+
+*.swp
+
+*.swo
+
+# -----------------------------
+
+# OS generated files
+
+# -----------------------------
+
+.DS_Store
+
+Thumbs.db
+
+# -----------------------------
+
+# Migrations cache (keep actual migration scripts)
+
+# -----------------------------
+
+migrations/__pycache__/
+
+migrations/versions/__pycache__/
+
+# -----------------------------
+
+# Alembic
+
+# -----------------------------
+
+alembic.ini  # Optional — keep if you want to track DB setup
+
+# (if alembic.ini has environment-specific info, ignore it)
+
+# Uncomment next line if you have sensitive info there
+
+# alembic.ini
+
+# -----------------------------
+
+# Build / Distribution
+
+# -----------------------------
+
+build/
+
+dist/
+
+*.egg-info/
+
+# -----------------------------
+
+# Logs / Temp files
+
+# -----------------------------
+
+*.log
+
+*.tmp
+
+*.bak
+
+*.pid
+
+# -----------------------------
+
+# Docker
+
+# -----------------------------
+
+# Ignore local build artifacts
+
+*.tar
+
+*.img
+
+*.pid
+
+# -----------------------------
+
+# Node / Frontend (if you have frontend code)
+
+# -----------------------------
+
+web/node_modules/
+
+web/dist/
+
+web/.cache/
+
+web/.vite/
+
+# -----------------------------
+
+# Pytest / coverage
+
+# -----------------------------
+.pytest_cache/
+.coverage
+htmlcov/
