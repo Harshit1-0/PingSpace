@@ -1,28 +1,85 @@
-from fastapi import FastAPI
-from Database.db import Base , engine
-
-from Routers import chat , auth
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from Database.db import Base, engine
+from Routers import chat, auth
+import traceback
+
 app = FastAPI()
+
+# Allowed origins (frontend URLs)
 origins = [
-    "http://192.168.200.130:5173",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://pingspace-jmzl.onrender.com", 
-    "https://pingspace1.vercel.app" 
+    "http://localhost:5173",           
+    "http://127.0.0.1:5173",           
+    "https://pingspace1.vercel.app",   
 ]
 
+# Add CORS middleware - IMPORTANT: Must be added before exception handlers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,      
+    allow_credentials=True,       
+    allow_methods=["*"],          
+    allow_headers=["*"],          
 )
 
+# Exception handler for HTTPException to ensure CORS headers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    # Check if origin is in allowed origins
+    origin = request.headers.get("origin")
+    cors_headers = {}
+    if origin and origin in origins:
+        cors_headers["Access-Control-Allow-Origin"] = origin
+        cors_headers["Access-Control-Allow-Credentials"] = "true"
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "message": exc.detail},
+        headers=cors_headers
+    )
 
+# Exception handler to ensure CORS headers are included in error responses
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the error for debugging
+    print(f"Unhandled exception: {exc}")
+    print(traceback.format_exc())
+    
+    # Check if origin is in allowed origins
+    origin = request.headers.get("origin")
+    cors_headers = {}
+    if origin and origin in origins:
+        cors_headers["Access-Control-Allow-Origin"] = origin
+        cors_headers["Access-Control-Allow-Credentials"] = "true"
+    
+    # Return JSON response with CORS headers
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error", "message": str(exc)},
+        headers=cors_headers
+    )
 
-Base.metadata.create_all(bind = engine)
+# Validation error handler with CORS headers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Check if origin is in allowed origins
+    origin = request.headers.get("origin")
+    cors_headers = {}
+    if origin and origin in origins:
+        cors_headers["Access-Control-Allow-Origin"] = origin
+        cors_headers["Access-Control-Allow-Credentials"] = "true"
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors(), "message": "Validation error"},
+        headers=cors_headers
+    )
 
-app.include_router(chat.router , prefix = '/chat')
-app.include_router(auth.router , prefix = '')
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
+# Routers
+app.include_router(chat.router, prefix="/chat")
+app.include_router(auth.router, prefix="")

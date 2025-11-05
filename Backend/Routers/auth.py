@@ -31,16 +31,23 @@ def signUp(user : UserOut, db:Session = Depends(get_db)) :
 
 @router.post('/login')
 def login(data : UserOut , db:Session = Depends(get_db)) :
-    get_user = db.query(User).filter(User.username == data.username).first()
-    if get_user :
-        if verify_password( data.password , get_user.password) :
-            token = jwt_handler.create_access_token({'sub' : get_user.username})
-            return token
-        else :
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        # return data.password
-    else:
-        raise HTTPException(status_code=400 , detail='Username doesnt exist')
+    try:
+        get_user = db.query(User).filter(User.username == data.username).first()
+        if get_user :
+            if verify_password( data.password , get_user.password) :
+                token = jwt_handler.create_access_token({'sub' : get_user.username})
+                return token
+            else :
+                raise HTTPException(status_code=401, detail="Invalid credentials")
+        else:
+            raise HTTPException(status_code=400 , detail='Username doesnt exist')
+    except HTTPException:
+        # Re-raise HTTP exceptions (they already have proper status codes)
+        raise
+    except Exception as e:
+        # Catch any other exceptions and log them
+        print(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 
