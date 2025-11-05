@@ -9,7 +9,8 @@ class RoomResponse(BaseModel) :
     id : int 
     name : str 
     description : Optional[str]
-    server_id :int
+    server_id : Optional[int]
+
 
     class Config:
         orm_mode = True

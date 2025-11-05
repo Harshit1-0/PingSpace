@@ -71,9 +71,15 @@ def create_room(data : RoomCreate , db:Session = Depends(get_db)):
      if get_room :
         raise HTTPException(status_code=400 , detail='Room Already Exist')
      else :
-        new_room = Room(name= data.name , description = data.description)
+        # Validate server exists before creating the room
+        server = db.query(Server).filter(Server.id == data.server_id).first()
+        if not server:
+            raise HTTPException(status_code=404, detail='Server not found')
+
+        new_room = Room(name= data.name , description = data.description, server_id=data.server_id)
         db.add(new_room)
         db.commit()
+        db.refresh(new_room)
         return new_room
 
 
