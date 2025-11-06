@@ -1,42 +1,33 @@
 import { useState } from "react";
+import { options } from "../helper/fetchOptions";
+import { getToken } from "../store/authStore";
+import { baseUrl } from "../helper/constant";
+import { jwtDecode } from "jwt-decode";
+import InputModal from "./InputModal";
 type Server = { name: string; id: string; owner_id: string };
 
 type ServerProps = {
   server?: Server[];
+  parent?: any;
 };
-// const dummyServers = [
-//   {
-//     id: "1",
-//     name: "Developers Hub",
-//     owner_id: "u101",
-//   },
-//   {
-//     id: "2",
-//     name: "Gamers Unite",
-//     owner_id: "u102",
-//   },
-//   {
-//     id: "3",
-//     name: "Music Lovers",
-//     owner_id: "u103",
-//   },
-//   {
-//     id: "4",
-//     name: "Study Corner",
-//     owner_id: "u104",
-//   },
-//   {
-//     id: "5",
-//     name: "Design Community",
-//     owner_id: "u105",
-//   },
-// ];
+type TokenPayload = { id: string; sub?: string };
+const token = getToken();
+console.log(token);
+const decoded = token ? jwtDecode<TokenPayload>(token) : null;
+const id = decoded?.id;
+console.log("This is the id : ", decoded?.id);
 
-const ServerSidebar = ({ server }: ServerProps) => {
+const ServerSidebar = ({ server, parent }: ServerProps) => {
   console.log(server);
 
   const [activeId, setActiveId] = useState<string>("home");
+  const [show, setShow] = useState(false);
+  // parent(activeId );
+  const createServer = () => {
+    setShow(true);
+  };
 
+  // console.log("ye wala server chau hai ", activeId);
   return (
     <div className="server-sidebar">
       <button
@@ -53,7 +44,10 @@ const ServerSidebar = ({ server }: ServerProps) => {
           className={"server-item" + (activeId === s.id ? " active" : "")}
           aria-label={s.name}
           data-tooltip={s.name}
-          onClick={() => setActiveId(s.id)}
+          onClick={() => {
+            setActiveId(s.id);
+            if (typeof parent === "function") parent(s.id);
+          }}
         >
           <div className="server-avatar">
             {s.name?.slice(0, 2)?.toUpperCase()}
@@ -61,6 +55,51 @@ const ServerSidebar = ({ server }: ServerProps) => {
           <span className="server-tooltip">{s.name}</span>
         </button>
       ))}
+      <button className="server-item" onClick={createServer}>
+        +
+      </button>
+      {show && (
+        <InputModal
+          isOpen={show}
+          title="Create Server"
+          description="Set your server details. You can change these later."
+          submitLabel="Create"
+          onClose={() => setShow(false)}
+          fields={[
+            {
+              name: "name",
+              label: "Server Name",
+              placeholder: "My Server",
+              required: true,
+              type: "text",
+            },
+            {
+              name: "description",
+              label: "Description",
+              placeholder: "Optional description",
+              type: "textarea",
+              rows: 3,
+            },
+          ]}
+          onSubmit={async (values) => {
+            const payload: any = {
+              name: String(values.name || "").trim(),
+              description: String(values.description || "").trim(),
+              owner_id: id,
+            };
+            try {
+              const res = await fetch(
+                `${baseUrl}/chat/create_server`,
+                options("POST", token, payload)
+              );
+              await res.json();
+              setShow(false);
+            } catch (error) {
+              console.error(error);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

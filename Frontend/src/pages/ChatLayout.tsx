@@ -20,6 +20,7 @@ export default function ChatLayout() {
   const [allRoom, setAllRoom] = useState([]);
   const [roomID, setRoomID] = useState(1);
   const [server, setServer] = useState([]);
+  const [activeServerId, setActiveServerId] = useState<string>("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   let [room, setRoom] = useState("game");
@@ -102,20 +103,19 @@ export default function ChatLayout() {
   }, []);
 
   ////////////////////get room////////////////////////
-
-  useEffect(() => {
-    const getRoom = async () => {
-      const url = `${baseUrl}/chat/get_room`;
-      const options = {
-        method: "GET",
-        header: { "Content-Type": "application/json" },
-      };
-      const res = await fetch(url, options);
-      const data = await res.json();
-      setAllRoom(data);
-    };
-    getRoom();
-  }, []);
+  // useEffect(() => {
+  //   const getRoom = async () => {
+  //     const url = `${baseUrl}/chat/get_room/${server_id}`;
+  //     const options = {
+  //       method: "GET",
+  //       header: { "Content-Type": "application/json" },
+  //     };
+  //     const res = await fetch(url, options);
+  //     const data = await res.json();
+  //     setAllRoom(data);
+  //   };
+  //   getRoom();
+  // }, []);
 
   const send = () => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -136,88 +136,85 @@ export default function ChatLayout() {
     setMessage((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
   };
-  
+
   // Close emoji picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target as Node)
+      ) {
         setShowEmojiPicker(false);
       }
     };
     if (showEmojiPicker) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showEmojiPicker]);
-  const handleNewRoom = async () => {
-    const url = `${baseUrl}/chat/create_room`;
+  const getServerID = () => {
 
-    const data = {
-      name: "study",
-      description: "its for stduies",
-    };
-    const options = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    };
-    const res = await fetch(url, options);
-    await res.json();
-  };
-
+  }
   return (
     <div className="app-shell">
       <Sidebar
         rooms={allRoom}
         onSelectRoom={selectedRoom}
-        onNewRoom={handleNewRoom}
         isOpen={isSidebarOpen}
         headerSlot={<div className="brand">PingSpace</div>}
         activeRoomName={room}
         server={server}
+        onServerChange={setActiveServerId}
       />
       {isSidebarOpen && (
         <div className="overlay" onClick={() => setIsSidebarOpen(false)} />
       )}
-      <main className="chat">
-        <ChatHeader
-          onOpenSidebar={() => setIsSidebarOpen(true)}
-          onToggleTheme={toggleTheme}
-          onLogout={logout}
-          userName={username as string}
-          roomName={room}
-        />
-        <ChatScreen username={username} messages={chat as any} />
-        <footer className="chat-input">
-          <div className="chat-input-wrapper" ref={emojiPickerRef}>
-            <button
-              className="emoji-button"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              type="button"
-              aria-label="Toggle emoji picker"
-            >
-              😊
+      {activeServerId ? (
+        <main className="chat">
+          <ChatHeader
+            onOpenSidebar={() => setIsSidebarOpen(true)}
+            onToggleTheme={toggleTheme}
+            onLogout={logout}
+            userName={username as string}
+            roomName={room}
+          />
+          <ChatScreen username={username} messages={chat as any} />
+          <footer className="chat-input">
+            <div className="chat-input-wrapper" ref={emojiPickerRef}>
+              <button
+                className="emoji-button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                type="button"
+                aria-label="Toggle emoji picker"
+              >
+                😊
+              </button>
+              {showEmojiPicker && (
+                <div className="emoji-picker-container">
+                  <EmojiPicker
+                    onEmojiClick={handleEmojiClick}
+                    theme={theme === "dark" ? Theme.DARK : Theme.LIGHT}
+                  />
+                </div>
+              )}
+              <input
+                placeholder="Type a message"
+                onChange={handleChat}
+                value={message}
+                onKeyDown={handleInputKeyDown}
+              />
+            </div>
+            <button className="send" onClick={send}>
+              Send
             </button>
-            {showEmojiPicker && (
-              <div className="emoji-picker-container">
-                <EmojiPicker
-                  onEmojiClick={handleEmojiClick}
-                  theme={theme === "dark" ? Theme.DARK : Theme.LIGHT}
-                />
-              </div>
-            )}
-            <input
-              placeholder="Type a message"
-              onChange={handleChat}
-              value={message}
-              onKeyDown={handleInputKeyDown}
-            />
-          </div>
-          <button className="send" onClick={send}>
-            Send
-          </button>
-        </footer>
-      </main>
+          </footer>
+        </main>
+      ) : (
+        <main className="chat" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="muted">Select a server to get started</div>
+        </main>
+      )}
     </div>
   );
 }

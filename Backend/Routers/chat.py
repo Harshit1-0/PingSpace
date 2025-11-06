@@ -84,7 +84,10 @@ def create_room(data : RoomCreate , db:Session = Depends(get_db)):
         db.refresh(new_room)
         return new_room
 
-
+@router.get('room/{server_id}' , tags = ['room']) 
+def get_room_by_server_Id(server_id , db:Session = Depends(get_db)) :
+    get_room = db.query(Room).filter(Room.server_id == server_id).all()
+    return get_room
 @router.post('/create_server' , response_model=ServerResponse , tags = ['server'])
 def create_server(data:ServerCreate , db:Session = Depends(get_db)) :
     get_server = db.query(Server).filter(Server.name == data.name).first()
