@@ -1,12 +1,12 @@
-import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuthStore } from "../store/authStore";
-import { baseUrl } from "../helper/constant";
-import { options } from "../helper/fetchOptions";
+import { FormEvent, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { baseUrl } from '../helper/constant';
+import { options } from '../helper/fetchOptions';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
@@ -18,31 +18,31 @@ export default function LoginPage() {
     try {
       const response = await fetch(
         `${baseUrl}/login`,
-        options("POST", null, { username, password }, true)
+        options('POST', null, { username, password }, true)
       );
 
       if (!response.ok) {
         const errData = await response.json();
-        setError(errData.message || "Login failed");
+        setError(errData.message || 'Login failed');
         return;
       }
 
       const data = await response.json();
       console.log(data);
       login(data);
-      navigate("/chat");
+      navigate('/chat');
     } catch (err) {
       console.error(err);
-      setError("An error occurred. Please try again.");
+      setError('An error occurred. Please try again.');
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1 className="brand">Biscord</h1>
+    <div className='auth-container'>
+      <div className='auth-card'>
+        <h1 className='brand'>PingSpace</h1>
         <h2>Login</h2>
-        <form onSubmit={onSubmit} className="auth-form">
+        <form onSubmit={onSubmit} className='auth-form'>
           <label>
             Username
             <input
@@ -56,17 +56,17 @@ export default function LoginPage() {
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              type="password"
+              type='password'
               required
             />
           </label>
-          {error && <div className="error-text">{error}</div>}
-          <button type="submit" className="primary-btn">
+          {error && <div className='error-text'>{error}</div>}
+          <button type='submit' className='primary-btn'>
             Sign in
           </button>
         </form>
-        <div className="muted">
-          No account? <Link to="/signup">Create one</Link>
+        <div className='muted'>
+          No account? <Link to='/signup'>Create one</Link>
         </div>
       </div>
     </div>
