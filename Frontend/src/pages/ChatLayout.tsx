@@ -25,10 +25,13 @@ export default function ChatLayout() {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   let [room, setRoom] = useState("game");
   let username: string | undefined = undefined;
+  let userId: string | undefined = undefined;
   const token = localStorage.getItem("token");
+  type TokenPayload = { id: string; sub?: string };
   if (token) {
-    const jwt_token = jwtDecode(token);
+    const jwt_token = jwtDecode<TokenPayload>(token);
     username = jwt_token.sub;
+    userId = jwt_token.id;
   }
   let ws = useRef<WebSocket | null>(null);
   useEffect(() => {
@@ -86,10 +89,9 @@ export default function ChatLayout() {
   };
 
   //////////////////get server////////////////
-
   useEffect(() => {
     const getServer = async () => {
-      const url = `${baseUrl}/chat/get_server`;
+      const url = `${baseUrl}/chat/get_server?id=${userId}`;
       const res = await fetch(url);
       const ans = await res.json();
       setServer(ans);

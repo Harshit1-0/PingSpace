@@ -82,12 +82,24 @@ const ServerSidebar = ({ server, parent }: ServerProps) => {
               description: String(values.description || "").trim(),
               owner_id: id,
             };
+
             try {
               const res = await fetch(
                 `${baseUrl}/chat/create_server`,
                 options("POST", token, payload)
               );
-              await res.json();
+              const ans = await res.json();
+
+              const user_id = id;
+              const server_id = ans.id;
+              const role = "admin";
+              const createServerUser = await fetch(
+                `${baseUrl}/chat/serverUser/${user_id}/${server_id}/${role}`,
+                options("POST", token)
+              );
+              const ans2 = await createServerUser.json();
+              // const main = await ans2.json();
+              console.log(ans2 );
               setShow(false);
             } catch (error) {
               console.error(error);

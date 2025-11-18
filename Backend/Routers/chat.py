@@ -18,7 +18,7 @@ from ws.connection_manager import ConnectionManager
 from schemas.server_schema import ServerCreate , ServerResponse
 from models.server import Server
 from models.serveruser import ServerUser
-from schemas.server_user_schema import ServerUserResponse , CreateServerUser
+from schemas.server_user_schema import ServerUserResponse , CreateServerUser 
 
 
 router = APIRouter()
@@ -100,9 +100,9 @@ def create_server(data:ServerCreate , db:Session = Depends(get_db)) :
     db.refresh(new_server)
     return new_server
 
-@router.get('/get_server' , response_model = list[ServerResponse] , tags = ['server'])
-def get_server(db:Session = Depends(get_db)) :
-    servers = db.query(Server).all()
+@router.get('/get_server' ,tags = ['server'])
+def get_server(id : str, db:Session = Depends(get_db)) :
+    servers = db.query(Server).join(ServerUser , Server.id == ServerUser.server_id).filter(ServerUser.user_id == id).all()
     return servers
 
 @router.get('/get_room' , response_model=list[RoomResponse] , tags=['room'])
@@ -131,16 +131,39 @@ def get_history(room: str, db:Session = Depends(get_db) ) :
 
 
 # for ServerUser model 
-@router.post('/serverUser/{user_id}/{server_id}/{role}' , response_model=ServerUserResponse)
+@router.post('/serverUser/{user_id}/{server_id}/{role}' , response_model=ServerUserResponse  ,tags = ['serverUser'])
 def create_server_user(user_id , server_id ,role ,  db : Session = Depends(get_db)):
-     get_userid = db.query(ServerUser).filter(ServerUser.user_id== user_id).first()
-     if get_userid :
-          raise HTTPException(status_code= 401 , detail = "user is already in this room")
      new_server_user = ServerUser(user_id = user_id, server_id = server_id , role = role)
      db.add(new_server_user)
      db.commit()
      db.refresh(new_server_user)
      return new_server_user
+
+@router.get('/serverUser/all' , tags = ['serverUser'])
+def get_all(db:Session = Depends(get_db)) :
+     get_all = db.query(ServerUser).all()
+     return get_all
+
+@router.get('/serverUser/{userId}',tags = ['serverUser'])
+def get_server_by_user(userId , db :Session =  Depends(get_db)) :
+    all_server = db.query(ServerUser).filter(ServerUser.user_id ==  userId).all()
+    return all_server
+
+@router.delete('/server/{server_id}', tags = ["server"]) 
+def delete_server(server_id , db:Session = Depends(get_db) ) :
+    server = db.query(Server).filter(Server.id == server_id)
+    if server :
+         db.delete(server)
+         return("Server Deleted Successfully")
+    else :
+         return("There is no server like this")
+    
+@router.delete('/server', tags = ["server"]) 
+def delete_all_server(db:Session = Depends(get_db)):
+    all_server =  db.query(Server).all() 
+    db.delete(all_server)
+    return {"All servers are delete successfully"}
+
 @router.get('/serverUser/{user_id}')
 def get_users_server(user_id , db:Session = Depends(get_db)) :
      get_server = db.query(ServerUser).filter(ServerUser.user_id == user_id).all()

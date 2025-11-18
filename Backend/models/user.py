@@ -10,3 +10,4 @@ class User(Base):
     username = Column(String, unique=True)
     password = Column(String)
     server = relationship("Server", back_populates='owner')
+    servers = relationship("ServerUser" , back_populates='user')
