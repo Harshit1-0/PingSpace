@@ -12,7 +12,8 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",           
     "http://127.0.0.1:5173",           
-    "https://pingspace1.vercel.app",   
+    "https://pingspace1.vercel.app", 
+    "http://localhost:4173"  
 ]
 
 # Add CORS middleware - IMPORTANT: Must be added before exception handlers

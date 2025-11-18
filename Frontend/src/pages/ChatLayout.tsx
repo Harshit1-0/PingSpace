@@ -17,7 +17,7 @@ export default function ChatLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [chat, setChat] = useState<any[]>([]);
   const [message, setMessage] = useState("");
-  const [allRoom, setAllRoom] = useState([]);
+  // const [allRoom, setAllRoom] = useState([]);
   const [roomID, setRoomID] = useState(1);
   const [server, setServer] = useState([]);
   const [activeServerId, setActiveServerId] = useState<string>("");
@@ -29,7 +29,6 @@ export default function ChatLayout() {
   if (token) {
     const jwt_token = jwtDecode(token);
     username = jwt_token.sub;
-    console.log(username);
   }
   let ws = useRef<WebSocket | null>(null);
   useEffect(() => {
@@ -53,16 +52,13 @@ export default function ChatLayout() {
     };
     get_data();
   }, [roomID]);
-  useEffect(() => {
-    console.log("💬 Chat updated:", chat);
-  }, [chat]);
+
   useEffect(() => {
     if (!username) return;
 
     ws.current?.close();
     const wsUrl = baseUrl.replace(/^http/, "ws"); // ws:// or wss://
     ws.current = new WebSocket(`${wsUrl}/chat/ws/${room}/${username}`);
-    console.log("........this is uusernam : ", username);
 
     ws.current.onopen = () => console.log("WebSocket connected");
     ws.current.onmessage = (event) => {
@@ -82,8 +78,8 @@ export default function ChatLayout() {
     return () => ws.current?.close();
   }, [room, username]);
 
+  // useEffect(() => {});
   const selectedRoom = (roomName: string, id: any) => {
-    console.log("yoooooo", roomName, id);
     setRoomID(id);
     setRoom(roomName);
     setIsSidebarOpen(false);
@@ -99,7 +95,6 @@ export default function ChatLayout() {
       setServer(ans);
     };
     getServer();
-    console.log(chat);
   }, []);
 
   ////////////////////get room////////////////////////
@@ -153,13 +148,10 @@ export default function ChatLayout() {
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showEmojiPicker]);
-  const getServerID = () => {
-
-  }
   return (
     <div className="app-shell">
       <Sidebar
-        rooms={allRoom}
+        // rooms={allRoom}
         onSelectRoom={selectedRoom}
         isOpen={isSidebarOpen}
         headerSlot={<div className="brand">PingSpace</div>}
@@ -211,7 +203,14 @@ export default function ChatLayout() {
           </footer>
         </main>
       ) : (
-        <main className="chat" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <main
+          className="chat"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <div className="muted">Select a server to get started</div>
         </main>
       )}

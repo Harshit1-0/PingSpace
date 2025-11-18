@@ -28,7 +28,6 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
-      console.log(data);
       login(data);
       navigate('/chat');
     } catch (err) {
@@ -38,9 +37,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className='auth-container'>
-      <div className='auth-card'>
-        <h1 className='brand'>PingSpace</h1>
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1 className="brand">PingSpace</h1>
         <h2>Login</h2>
         <form onSubmit={onSubmit} className='auth-form'>
           <label>

@@ -7,7 +7,7 @@ type SelectOption = {
 
 type FieldConfig = {
   name: string;
-  label: string;
+  label?: string;
   type?:
     | "text"
     | "textarea"
@@ -64,7 +64,7 @@ const InputModal: React.FC<InputModalProps> = ({
     if (isOpen) {
       setValues(initialValues);
     }
-  }, [isOpen, initialValues]);
+  }, [isOpen]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -78,10 +78,7 @@ const InputModal: React.FC<InputModalProps> = ({
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  const handleChange = (
-    name: string,
-    value: string | number
-  ) => {
+  const handleChange = (name: string, value: string | number) => {
     setValues((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -119,11 +116,7 @@ const InputModal: React.FC<InputModalProps> = ({
             <h2 id="input-modal-title" className="modal-title">
               {title}
             </h2>
-            {description ? (
-              <p className="modal-desc">
-                {description}
-              </p>
-            ) : null}
+            {description ? <p className="modal-desc">{description}</p> : null}
           </div>
           <button
             type="button"
@@ -142,8 +135,11 @@ const InputModal: React.FC<InputModalProps> = ({
               name: field.name,
               placeholder: field.placeholder,
               required: field.required,
-              onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-                handleChange(field.name, e.target.value),
+              onChange: (
+                e: React.ChangeEvent<
+                  HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+                >
+              ) => handleChange(field.name, e.target.value),
               value: values[field.name] ?? "",
               className: "modal-input",
             } as const;
@@ -200,11 +196,7 @@ const InputModal: React.FC<InputModalProps> = ({
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn primary"
-              disabled={submitting}
-            >
+            <button type="submit" className="btn primary" disabled={submitting}>
               {submitting ? "Saving..." : submitLabel}
             </button>
           </div>

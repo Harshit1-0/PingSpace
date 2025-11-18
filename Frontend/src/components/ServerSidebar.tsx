@@ -8,18 +8,14 @@ type Server = { name: string; id: string; owner_id: string };
 
 type ServerProps = {
   server?: Server[];
-  parent?: any;
+  parent?: (serverId: string) => void;
 };
 type TokenPayload = { id: string; sub?: string };
 const token = getToken();
-console.log(token);
 const decoded = token ? jwtDecode<TokenPayload>(token) : null;
 const id = decoded?.id;
-console.log("This is the id : ", decoded?.id);
 
 const ServerSidebar = ({ server, parent }: ServerProps) => {
-  console.log(server);
-
   const [activeId, setActiveId] = useState<string>("home");
   const [show, setShow] = useState(false);
   // parent(activeId );
@@ -27,7 +23,6 @@ const ServerSidebar = ({ server, parent }: ServerProps) => {
     setShow(true);
   };
 
-  // console.log("ye wala server chau hai ", activeId);
   return (
     <div className="server-sidebar">
       <button
