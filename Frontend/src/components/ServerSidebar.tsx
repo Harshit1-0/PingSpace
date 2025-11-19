@@ -23,11 +23,14 @@ const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
   const profileRef = useRef<HTMLDivElement>(null);
 
   const { logout } = useAuthStore();
-  
+
   // Close profile popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -43,8 +46,9 @@ const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
   const createServer = () => {
     setShow(true);
   };
-  
-  const userName = jwtDecode(getToken()).sub;
+
+  const tokenForUser = getToken();
+  const userName = tokenForUser ? jwtDecode<TokenPayload>(tokenForUser).sub : undefined;
 
   return (
     <div className="server-sidebar">
@@ -131,9 +135,9 @@ const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
         />
       )}
       <div className="profile-section">
-        <button 
-          className="server-item profile-button" 
-          title="Toggle theme" 
+        <button
+          className="server-item profile-button"
+          title="Toggle theme"
           onClick={onToggleTheme}
           aria-label="Toggle theme"
         >
