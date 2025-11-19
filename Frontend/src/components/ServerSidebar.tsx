@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { options } from "../helper/fetchOptions";
-import { getToken } from "../store/authStore";
+import { getToken, useAuthStore } from "../store/authStore";
 import { baseUrl } from "../helper/constant";
 import { jwtDecode } from "jwt-decode";
 import InputModal from "./InputModal";
@@ -8,6 +8,7 @@ type Server = { name: string; id: string; owner_id: string };
 
 type ServerProps = {
   server?: Server[];
+  onToggleTheme?: () => void;
   parent?: (serverId: string) => void;
 };
 type TokenPayload = { id: string; sub?: string };
@@ -15,13 +16,35 @@ const token = getToken();
 const decoded = token ? jwtDecode<TokenPayload>(token) : null;
 const id = decoded?.id;
 
-const ServerSidebar = ({ server, parent }: ServerProps) => {
+const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
   const [activeId, setActiveId] = useState<string>("home");
+  const [open, setOpen] = useState(false);
   const [show, setShow] = useState(false);
-  // parent(activeId );
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const { logout } = useAuthStore();
+  
+  // Close profile popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [open]);
+
   const createServer = () => {
     setShow(true);
   };
+  
+  const userName = jwtDecode(getToken()).sub;
 
   return (
     <div className="server-sidebar">
@@ -99,7 +122,7 @@ const ServerSidebar = ({ server, parent }: ServerProps) => {
               );
               const ans2 = await createServerUser.json();
               // const main = await ans2.json();
-              console.log(ans2 );
+              console.log(ans2);
               setShow(false);
             } catch (error) {
               console.error(error);
@@ -107,6 +130,42 @@ const ServerSidebar = ({ server, parent }: ServerProps) => {
           }}
         />
       )}
+      <div className="profile-section">
+        <button 
+          className="server-item profile-button" 
+          title="Toggle theme" 
+          onClick={onToggleTheme}
+          aria-label="Toggle theme"
+        >
+          🌓
+        </button>
+        <div className="profile-anchor" ref={profileRef}>
+          <button
+            className="server-item profile-button"
+            title="Profile"
+            aria-label="Profile"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {userName?.[0]?.toUpperCase() || "U"}
+          </button>
+          {open && (
+            <div className="profile-popover">
+              <div className="profile-row">
+                <div className="profile-avatar">
+                  {userName?.[0]?.toUpperCase() || "U"}
+                </div>
+                <div className="profile-meta">
+                  <div className="profile-name">{userName || "User"}</div>
+                  <div className="profile-sub">Signed in</div>
+                </div>
+              </div>
+              <button className="profile-action" onClick={logout}>
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

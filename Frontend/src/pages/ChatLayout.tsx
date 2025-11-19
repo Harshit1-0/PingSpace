@@ -156,6 +156,7 @@ export default function ChatLayout() {
         // rooms={allRoom}
         onSelectRoom={selectedRoom}
         isOpen={isSidebarOpen}
+        onToggleTheme={toggleTheme}
         headerSlot={<div className="brand">PingSpace</div>}
         activeRoomName={room}
         server={server}

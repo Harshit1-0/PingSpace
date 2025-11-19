@@ -10,6 +10,7 @@ type Server = { name: string; id: string; owner_id: string };
 
 type SidebarProps = {
   onSelectRoom: (roomName: string, id: any) => void;
+  onToggleTheme: () => void;
   isOpen?: boolean;
   headerSlot?: ReactNode;
   activeRoomName?: string;
@@ -19,6 +20,7 @@ type SidebarProps = {
 
 export default function Sidebar({
   onSelectRoom,
+  onToggleTheme,
   isOpen,
   headerSlot,
   activeRoomName,
@@ -91,31 +93,55 @@ export default function Sidebar({
 
   const handleInvite = () => {
     if (!activeServerId) return;
-    
+
     // Create invite link (you can customize this based on your invite system)
     const inviteLink = `${window.location.origin}/join?server=${activeServerId}`;
-    
+
     // Copy to clipboard
-    navigator.clipboard.writeText(inviteLink).then(() => {
-      setShowInviteModal(true);
-      // Auto-hide after 2 seconds
-      setTimeout(() => setShowInviteModal(false), 2000);
-    }).catch((err) => {
-      console.error("Failed to copy invite link:", err);
-      // Fallback: show the link in an alert
-      alert(`Invite Link: ${inviteLink}`);
-    });
+    navigator.clipboard
+      .writeText(inviteLink)
+      .then(() => {
+        setShowInviteModal(true);
+        // Auto-hide after 2 seconds
+        setTimeout(() => setShowInviteModal(false), 2000);
+      })
+      .catch((err) => {
+        console.error("Failed to copy invite link:", err);
+        // Fallback: show the link in an alert
+        alert(`Invite Link: ${inviteLink}`);
+      });
   };
 
   return (
     <aside className={"sidebar" + (isOpen ? " open" : "")}>
       <div className="sidebar-row">
-        <ServerSidebar server={server} parent={handleSeverID} />
+        <ServerSidebar
+          onToggleTheme={onToggleTheme}
+          server={server}
+          parent={handleSeverID}
+        />
         <div className="sidebar-content">
-          <div className="sidebar-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", position: "relative" }}>
+          <div
+            className="sidebar-header"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "8px",
+              position: "relative",
+            }}
+          >
             {activeServer ? (
               <>
-                <div className="brand" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div
+                  className="brand"
+                  style={{
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {activeServer.name}
                 </div>
                 <div style={{ position: "relative" }}>
@@ -134,11 +160,13 @@ export default function Sidebar({
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      transition: "background-color 0.15s ease, color 0.15s ease",
+                      transition:
+                        "background-color 0.15s ease, color 0.15s ease",
                       flexShrink: 0,
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                      e.currentTarget.style.background =
+                        "rgba(255,255,255,0.05)";
                       e.currentTarget.style.color = "var(--text)";
                     }}
                     onMouseLeave={(e) => {
@@ -146,7 +174,16 @@ export default function Sidebar({
                       e.currentTarget.style.color = "var(--muted)";
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                       <circle cx="9" cy="7" r="4"></circle>
                       <line x1="19" y1="8" x2="19" y2="14"></line>

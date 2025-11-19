@@ -25,7 +25,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     set({ theme })
   },
   toggleTheme: () => {
-    const next: Theme = get().theme === 'light' ? 'dark' : 'light'
+    const next: Theme = get().theme === 'dark' ? 'light' : 'dark'
     localStorage.setItem('theme', next)
     applyTheme(next)
     set({ theme: next })

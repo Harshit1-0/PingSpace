@@ -8,7 +8,13 @@ type ChatHeaderProps = {
   roomName?: string;
 };
 
-export default function ChatHeader({ onOpenSidebar, onToggleTheme, onLogout, userName, roomName }: ChatHeaderProps) {
+export default function ChatHeader({
+  onOpenSidebar,
+  onToggleTheme,
+  onLogout,
+  userName,
+  roomName,
+}: ChatHeaderProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -17,17 +23,21 @@ export default function ChatHeader({ onOpenSidebar, onToggleTheme, onLogout, use
       if (!menuRef.current) return;
       if (!menuRef.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
   return (
     <header className="chat-header">
-      <button className="menu" aria-label="Open sidebar" onClick={onOpenSidebar}>
+      <button
+        className="menu"
+        aria-label="Open sidebar"
+        onClick={onOpenSidebar}
+      >
         ☰
       </button>
       {roomName && <div className="chat-title">{roomName.toUpperCase()}</div>}
-      <button className="circle" title="Toggle theme" onClick={onToggleTheme}>
+      {/* <button className="circle" title="Toggle theme" onClick={onToggleTheme}>
         🌓
       </button>
       <div className="profile-anchor" ref={menuRef}>
@@ -46,9 +56,7 @@ export default function ChatHeader({ onOpenSidebar, onToggleTheme, onLogout, use
             <button className="profile-action" onClick={onLogout}>Logout</button>
           </div>
         )}
-      </div>
+      </div> */}
     </header>
   );
 }
-
-
