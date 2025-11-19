@@ -6,7 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import ChatLayout from "./pages/ChatLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import Test from "./components/Test";
+import JoinPage from "./pages/JoinPage";
 // Ensure theme is applied before first paint
 const savedTheme =
   (typeof localStorage !== "undefined" && localStorage.getItem("theme")) ||
@@ -18,7 +18,7 @@ if (typeof document !== "undefined") {
 const router = createBrowserRouter([
   { path: "/", element: <LoginPage /> },
   { path: "/signup", element: <SignUpPage /> },
-  { path: "/test", element: <Test /> },
+  { path: "/join", element: <JoinPage /> },
   {
     path: "/chat",
     element: (

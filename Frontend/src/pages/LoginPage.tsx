@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { baseUrl } from '../helper/constant';
 import { options } from '../helper/fetchOptions';
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,7 +30,10 @@ export default function LoginPage() {
 
       const data = await response.json();
       login(data);
-      navigate('/chat');
+      
+      // Redirect to returnUrl if provided, otherwise go to chat
+      const returnUrl = searchParams.get('returnUrl');
+      navigate(returnUrl || '/chat');
     } catch (err) {
       console.error(err);
       setError('An error occurred. Please try again.');
