@@ -165,58 +165,53 @@ export default function ChatLayout() {
       {isSidebarOpen && (
         <div className="overlay" onClick={() => setIsSidebarOpen(false)} />
       )}
-      {activeServerId ? (
-        <main className="chat">
-          <ChatHeader
-            onOpenSidebar={() => setIsSidebarOpen(true)}
-            onToggleTheme={toggleTheme}
-            onLogout={logout}
-            userName={username as string}
-            roomName={room}
-          />
-          <ChatScreen username={username} messages={chat as any} />
-          <footer className="chat-input">
-            <div className="chat-input-wrapper" ref={emojiPickerRef}>
-              <button
-                className="emoji-button"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                type="button"
-                aria-label="Toggle emoji picker"
-              >
-                😊
+      <main className="chat">
+        <ChatHeader
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onToggleTheme={toggleTheme}
+          onLogout={logout}
+          userName={username as string}
+          roomName={activeServerId ? room : "Select a server"}
+        />
+        {activeServerId ? (
+          <>
+            <ChatScreen username={username} messages={chat as any} />
+            <footer className="chat-input">
+              <div className="chat-input-wrapper" ref={emojiPickerRef}>
+                <button
+                  className="emoji-button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  type="button"
+                  aria-label="Toggle emoji picker"
+                >
+                  😊
+                </button>
+                {showEmojiPicker && (
+                  <div className="emoji-picker-container">
+                    <EmojiPicker
+                      onEmojiClick={handleEmojiClick}
+                      theme={theme === "dark" ? Theme.DARK : Theme.LIGHT}
+                    />
+                  </div>
+                )}
+                <input
+                  placeholder="Type a message"
+                  onChange={handleChat}
+                  value={message}
+                  onKeyDown={handleInputKeyDown}
+                />
+              </div>
+              <button className="send" onClick={send}>
+                Send
               </button>
-              {showEmojiPicker && (
-                <div className="emoji-picker-container">
-                  <EmojiPicker
-                    onEmojiClick={handleEmojiClick}
-                    theme={theme === "dark" ? Theme.DARK : Theme.LIGHT}
-                  />
-                </div>
-              )}
-              <input
-                placeholder="Type a message"
-                onChange={handleChat}
-                value={message}
-                onKeyDown={handleInputKeyDown}
-              />
-            </div>
-            <button className="send" onClick={send}>
-              Send
-            </button>
-          </footer>
-        </main>
-      ) : (
-        <main
-          className="chat"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div className="muted">Select a server to get started</div>
-        </main>
-      )}
+            </footer>
+          </>
+        ) : (
+          <div className="empty-chat-state">
+            <div className="muted">Select a server to get started</div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

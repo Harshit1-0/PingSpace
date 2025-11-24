@@ -72,6 +72,7 @@ a { color: var(--accent); }
 .emoji-picker-container { position:absolute; bottom:calc(100% + 8px); left:0; z-index:100; }
 .send { background:var(--accent); color:white; border:0; padding:10px 16px; border-radius:8px; cursor:pointer; }
 .send:hover { opacity:0.9; }
+.empty-chat-state { flex:1; display:flex; align-items:center; justify-content:center; text-align:center; padding:24px; }
 
 /* Ensure sidebar doesn't move when chat scrolls */
 .app-shell { overflow:hidden; }
