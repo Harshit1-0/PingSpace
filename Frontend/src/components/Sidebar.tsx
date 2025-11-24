@@ -9,6 +9,7 @@ type Room = { name: string; id: string | number };
 type Server = { name: string; id: string; owner_id: string };
 
 type SidebarProps = {
+  getServer: () => void;
   onSelectRoom: (roomName: string, id: any) => void;
   onToggleTheme: () => void;
   isOpen?: boolean;
@@ -19,6 +20,7 @@ type SidebarProps = {
 };
 
 export default function Sidebar({
+  getServer,
   onSelectRoom,
   onToggleTheme,
   isOpen,
@@ -38,16 +40,15 @@ export default function Sidebar({
     if (!activeServerId || !server) return null;
     return server.find((s) => s.id === activeServerId);
   }, [activeServerId, server]);
-
+  const getRoom = async () => {
+    const response = await fetch(
+      `${baseUrl}/chatroom/${activeServerId}`,
+      options("GET")
+    );
+    const data = await response.json();
+    activeServerId && setRooms(data);
+  };
   useEffect(() => {
-    const getRoom = async () => {
-      const response = await fetch(
-        `${baseUrl}/chatroom/${activeServerId}`,
-        options("GET")
-      );
-      const data = await response.json();
-      activeServerId && setRooms(data);
-    };
     getRoom();
   }, [activeServerId]);
 
@@ -82,7 +83,9 @@ export default function Sidebar({
         options("POST", tokenString, payload)
       );
       await res.json();
+
       setShow(false);
+      getRoom();
     } catch (error) {
       console.error(error);
     }
@@ -116,6 +119,7 @@ export default function Sidebar({
     <aside className={"sidebar" + (isOpen ? " open" : "")}>
       <div className="sidebar-row">
         <ServerSidebar
+          getServer={getServer}
           onToggleTheme={onToggleTheme}
           server={server}
           parent={handleSeverID}

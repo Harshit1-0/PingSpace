@@ -18,16 +18,17 @@ export default function ChatLayout() {
   const [chat, setChat] = useState<any[]>([]);
   const [message, setMessage] = useState("");
   // const [allRoom, setAllRoom] = useState([]);
-  const [roomID, setRoomID] = useState(1);
+  const [roomID, setRoomID] = useState<string>();
   const [server, setServer] = useState([]);
   const [activeServerId, setActiveServerId] = useState<string>("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
-  let [room, setRoom] = useState("game");
+  let [room, setRoom] = useState("Select or Create the room");
   let username: string | undefined = undefined;
   let userId: string | undefined = undefined;
   const token = localStorage.getItem("token");
   type TokenPayload = { id: string; sub?: string };
+
   if (token) {
     const jwt_token = jwtDecode<TokenPayload>(token);
     username = jwt_token.sub;
@@ -38,7 +39,7 @@ export default function ChatLayout() {
     const get_data = async () => {
       try {
         const res = await fetch(
-          `${baseUrl}/chat/histroy?room=${roomID.toString()}`,
+          `${baseUrl}/chat/histroy?room=${roomID?.toString() || ""}`,
           options("GET")
         );
         if (!res.ok) {
@@ -87,15 +88,14 @@ export default function ChatLayout() {
     setRoom(roomName);
     setIsSidebarOpen(false);
   };
-
+  const getServer = async () => {
+    const url = `${baseUrl}/chat/get_server?id=${userId}`;
+    const res = await fetch(url);
+    const ans = await res.json();
+    setServer(ans);
+  };
   //////////////////get server////////////////
   useEffect(() => {
-    const getServer = async () => {
-      const url = `${baseUrl}/chat/get_server?id=${userId}`;
-      const res = await fetch(url);
-      const ans = await res.json();
-      setServer(ans);
-    };
     getServer();
   }, []);
 
@@ -153,6 +153,7 @@ export default function ChatLayout() {
   return (
     <div className="app-shell">
       <Sidebar
+        getServer={getServer}
         // rooms={allRoom}
         onSelectRoom={selectedRoom}
         isOpen={isSidebarOpen}
@@ -173,7 +174,7 @@ export default function ChatLayout() {
           userName={username as string}
           roomName={activeServerId ? room : "Select a server"}
         />
-        {activeServerId ? (
+        {roomID ? (
           <>
             <ChatScreen username={username} messages={chat as any} />
             <footer className="chat-input">
@@ -208,7 +209,7 @@ export default function ChatLayout() {
           </>
         ) : (
           <div className="empty-chat-state">
-            <div className="muted">Select a server to get started</div>
+            <div className="muted">Select a room to get started</div>
           </div>
         )}
       </main>

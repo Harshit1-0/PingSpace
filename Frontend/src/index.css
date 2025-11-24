@@ -19,8 +19,85 @@ a { color: var(--accent); }
 .muted { margin-top:10px; color: var(--muted); }
 
 /* App Shell */
+/* Sidebar Styling */
+.server-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 55vh; /* Keeps the sidebar within 65% of the viewport height */
+  padding: 10px; /* Add some padding inside */
+  border-radius: 8px; /* Optional: rounded corners for the sidebar */
+}
+
+/* Custom Scrollbar Styles */
+.server-list::-webkit-scrollbar {
+  width: 8px; /* Set the scrollbar width */
+  height: 8px; /* Optional: If you want a horizontal scrollbar too */
+}
+
+.server-list::-webkit-scrollbar-thumb {
+  background-color: var(--border, #888); /* Thumb color */
+  border-radius: 10px; /* Rounded corners for the scrollbar thumb */
+  border: 2px solid transparent; /* Optional: add some border around the thumb */
+  background-clip: content-box; /* Optional: slightly clearer thumb */
+}
+
+.server-list::-webkit-scrollbar-track {
+  background: transparent; /* Track background color */
+  border-radius: 10px;
+}
+
+.server-list {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--border, #888) transparent; /* Firefox: thumb and track color */
+}
+
+/* Optional: Styling the server items inside the sidebar */
+.server-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  margin: 4px 0;
+  border-radius: 5px;
+  background-color: var(--button-bg, #333); /* Background color of the server item */
+  color: #fff; /* Text color */
+  transition: background-color 0.3s ease;
+}
+
+.server-item:hover {
+  background-color: var(--hover-bg, #444); /* Hover effect for items */
+}
+
+.server-item.active {
+  background-color: var(--active-bg, #555); /* Active server item background */
+}
+
+/* Optional: Styling for the profile button */
+.profile-button {
+  background-color: var(--button-bg, #333);
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.profile-button:hover {
+  background-color: var(--hover-bg, #444); /* Hover effect on profile button */
+}
+
+/* Optional: Space out items in the sidebar */
+.server-separator {
+  height: 2px;
+  background: var(--border, #888); /* Border color */
+  margin: 10px 0; /* Spacing between sections */
+  border-radius: 2px;
+}
+
+
 .app-shell { display:grid; grid-template-columns: 332px 1fr; height:100%; }
-.server-sidebar { width:72px; min-width:72px; border-right:1px solid var(--border); background: var(--panel); display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px 8px; height:100%; }
+.server-sidebar { width:72px; min-width:72px;  border-right:1px solid var(--border); background: var(--panel); display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px 8px; height:100%; }
 .server-sidebar > *:last-child { margin-top: auto; }
 .server-item { position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:50%; background: #313338; color:#fff; border:0; cursor:pointer; transition: border-radius .2s ease, transform .12s ease, background .2s ease; }
 /* Light mode: change inactive server background */
@@ -31,7 +108,7 @@ a { color: var(--accent); }
 .server-item:hover { border-radius:16px; transform: translateZ(0) scale(1.02); }
 .server-item.active { background: var(--accent); border-radius:16px; }
 .server-avatar { width:100%; height:100%; border-radius:inherit; display:flex; align-items:center; justify-content:center; font-weight:700; letter-spacing:.5px; }
-.server-separator { width:24px; height:2px; background: var(--border); border-radius:2px; margin:4px 0 2px; }
+.server-separator {overflow-y: auto; width:24px; height:2px; background: var(--border); border-radius:2px; margin:4px 0 2px; }
 .server-tooltip { position:absolute; left:58px; background:#000; color:#fff; padding:6px 8px; border-radius:6px; font-size:12px; white-space:nowrap; opacity:0; transform: translateY(-50%); top:50%; pointer-events:none; transition: opacity .12s ease; }
 .server-item:hover .server-tooltip { opacity:1; }
 .sidebar { border-right:1px solid var(--border); background:var(--panel); display:flex; flex-direction:column; transition: transform .2s ease; }

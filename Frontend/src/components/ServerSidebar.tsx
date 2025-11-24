@@ -10,20 +10,25 @@ type ServerProps = {
   server?: Server[];
   onToggleTheme?: () => void;
   parent?: (serverId: string) => void;
+  getServer?: () => void;
 };
 type TokenPayload = { id: string; sub?: string };
 const token = getToken();
 const decoded = token ? jwtDecode<TokenPayload>(token) : null;
 const id = decoded?.id;
 
-const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
+const ServerSidebar = ({
+  getServer,
+  server,
+  parent,
+  onToggleTheme,
+}: ServerProps) => {
   const [activeId, setActiveId] = useState<string>("home");
   const [open, setOpen] = useState(false);
   const [show, setShow] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const { logout } = useAuthStore();
-
   // Close profile popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -48,7 +53,9 @@ const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
   };
 
   const tokenForUser = getToken();
-  const userName = tokenForUser ? jwtDecode<TokenPayload>(tokenForUser).sub : undefined;
+  const userName = tokenForUser
+    ? jwtDecode<TokenPayload>(tokenForUser).sub
+    : undefined;
 
   return (
     <div className="server-sidebar">
@@ -60,23 +67,26 @@ const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
         <div className="server-avatar">PS</div>
       </button>
       <div className="server-separator" />
-      {server?.map((s) => (
-        <button
-          key={s.id}
-          className={"server-item" + (activeId === s.id ? " active" : "")}
-          aria-label={s.name}
-          data-tooltip={s.name}
-          onClick={() => {
-            setActiveId(s.id);
-            if (typeof parent === "function") parent(s.id);
-          }}
-        >
-          <div className="server-avatar">
-            {s.name?.slice(0, 2)?.toUpperCase()}
-          </div>
-          <span className="server-tooltip">{s.name}</span>
-        </button>
-      ))}
+      <div className="server-list">
+        {server?.map((s) => (
+          <button
+            key={s.id}
+            className={"server-item" + (activeId === s.id ? " active" : "")}
+            aria-label={s.name}
+            data-tooltip={s.name}
+            onClick={() => {
+              setActiveId(s.id);
+              if (typeof parent === "function") parent(s.id);
+            }}
+          >
+            <div className="server-avatar">
+              {s.name?.slice(0, 2)?.toUpperCase()}
+            </div>
+            <span className="server-tooltip">{s.name}</span>
+          </button>
+        ))}
+      </div>
+
       <button className="server-item" onClick={createServer}>
         +
       </button>
@@ -128,6 +138,7 @@ const ServerSidebar = ({ server, parent, onToggleTheme }: ServerProps) => {
               // const main = await ans2.json();
               console.log(ans2);
               setShow(false);
+              getServer?.();
             } catch (error) {
               console.error(error);
             }
