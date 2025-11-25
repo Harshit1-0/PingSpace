@@ -28,18 +28,22 @@ export default function ChatLayout() {
   let userId: string | undefined = undefined;
   const token = localStorage.getItem("token");
   type TokenPayload = { id: string; sub?: string };
-
+  console.log("this is how chat look like : ", chat);
   if (token) {
     const jwt_token = jwtDecode<TokenPayload>(token);
     username = jwt_token.sub;
     userId = jwt_token.id;
   }
   let ws = useRef<WebSocket | null>(null);
+  console.log("This is the server which active rn : ", activeServerId);
+  console.log("This is the active room", room);
   useEffect(() => {
     const get_data = async () => {
       try {
         const res = await fetch(
-          `${baseUrl}/chat/histroy?room=${roomID?.toString() || ""}`,
+          `${baseUrl}/chat/histroy?room=${
+            roomID?.toString() || ""
+          }&server_id=${activeServerId}`,
           options("GET")
         );
         if (!res.ok) {
@@ -58,11 +62,19 @@ export default function ChatLayout() {
   }, [roomID]);
 
   useEffect(() => {
+    //receiving message from backend
     if (!username) return;
-
-    ws.current?.close();
+    console.log("useeffect is called", room);
+    // ws.current?.close();
     const wsUrl = baseUrl.replace(/^http/, "ws"); // ws:// or wss://
-    ws.current = new WebSocket(`${wsUrl}/chat/ws/${room}/${username}`);
+    console.log(
+      "this is the serverid this ",
+      activeServerId + "this the room ",
+      room
+    );
+    ws.current = new WebSocket(
+      `${wsUrl}/chat/ws/${activeServerId}/${room}/${username}`
+    );
 
     ws.current.onopen = () => console.log("WebSocket connected");
     ws.current.onmessage = (event) => {
@@ -80,7 +92,7 @@ export default function ChatLayout() {
     ws.current.onclose = () => console.log("WebSocket closed");
 
     return () => ws.current?.close();
-  }, [room, username]);
+  }, [room, username, activeServerId]);
 
   // useEffect(() => {});
   const selectedRoom = (roomName: string, id: any) => {
@@ -94,30 +106,16 @@ export default function ChatLayout() {
     const ans = await res.json();
     setServer(ans);
   };
-  //////////////////get server////////////////
+
   useEffect(() => {
     getServer();
   }, []);
-
-  ////////////////////get room////////////////////////
-  // useEffect(() => {
-  //   const getRoom = async () => {
-  //     const url = `${baseUrl}/chat/get_room/${server_id}`;
-  //     const options = {
-  //       method: "GET",
-  //       header: { "Content-Type": "application/json" },
-  //     };
-  //     const res = await fetch(url, options);
-  //     const data = await res.json();
-  //     setAllRoom(data);
-  //   };
-  //   getRoom();
-  // }, []);
 
   const send = () => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(message);
     }
+    console.log("we send the message");
     setMessage("");
   };
   const handleChat = (e: any) => {
@@ -159,7 +157,7 @@ export default function ChatLayout() {
         isOpen={isSidebarOpen}
         onToggleTheme={toggleTheme}
         headerSlot={<div className="brand">PingSpace</div>}
-        activeRoomName={room}
+        activeRoomName={roomID}
         server={server}
         onServerChange={setActiveServerId}
       />

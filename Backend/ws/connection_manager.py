@@ -2,59 +2,67 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
-        self.rooms = {}  # {room_name: [WebSocket, WebSocket]}
-        self.online = {} # {game : [harshit , rahul ]}
-        self.socket_to_username = {}  # {WebSocket: username}
+        self.rooms = {}              # {(server_id, room): [sockets]}
+        self.online = {}             # {(server_id, room): [usernames]}
+        self.socket_to_username = {} # {socket: username}
 
-    async def connect(self, websocket: WebSocket, room: str , username:str):
+    async def connect(self, websocket: WebSocket, server_id: str, room: str, username: str):
         await websocket.accept()
-        if room not in self.rooms:
-            self.rooms[room] = []
-            self.online[room] = []
-        self.rooms[room].append(websocket)
-        if username not in self.online[room] :
-            self.online[room].append(username)
+
+        key = (server_id, room)
+
+        if key not in self.rooms:
+            self.rooms[key] = []
+            self.online[key] = []
+
+        self.rooms[key].append(websocket)
+        print("This are self.rooms" , self.rooms)
+        if username not in self.online[key]:
+            self.online[key].append(username)
+
         self.socket_to_username[websocket] = username
-        print(f'{username} connect to {room}' )
-        print('room : ',self.online)
-        print(self.socket_to_username)
-        print(self.rooms)
-        
-    
-    def disconnect(self, websocket: WebSocket, room: str):
+
+        print(f"{username} connected to {key}")
+
+    def disconnect(self, websocket: WebSocket, server_id: str, room: str):
+        key = (server_id, room)
+
         username = self.socket_to_username.pop(websocket, None)
-        if room in self.rooms and websocket in self.rooms[room]:
-            self.rooms[room].remove(websocket)
-        if username and room in self.online and username in self.online[room]:
-            self.online[room].remove(username)
-        if room in self.online:
-            print(self.online[room])
-    async def broadcast(self, room: str ,websocket,  message):
-            print(websocket)
-       
-            if room in self.rooms:
-                stale_connections = []
-                # Iterate over a copy to avoid mutation during iteration
-                print("all the members in rooms : " , list(self.rooms[room]))
-                
-                for connection in list(self.rooms[room]):
-                    print("this are the username we are sending the message : " , self.socket_to_username[connection])
-                    try:
-                        # send structured payload (sender, content)
-                        await connection.send_json(message)
-                    except Exception:
-                        stale_connections.append(connection)
-                for connection in stale_connections:
-                    try:
-                        await connection.close()
-                    except Exception:
-                        pass
-                    self.disconnect(connection, room)
+
+        
+        if key in self.rooms and websocket in self.rooms[key]:
+            self.rooms[key].remove(websocket)
+
+        if username and key in self.online and username in self.online[key]:
+            self.online[key].remove(username)
+
+    async def broadcast(self, server_id: str, room: str, sender_socket: WebSocket, message):
+        key = (server_id, room)
+
+        if key not in self.rooms:
+            return
+
+        stale = []
+
+        for connection in list(self.rooms[key]):
+            try:
+                await connection.send_json(message)
+            except Exception:
+                stale.append(connection)
+
+        for connection in stale:
+            try:
+                await connection.close()
+            except:
+                pass
+            self.disconnect(connection, server_id, room)
+
     def get_all_the_rooms(self):
         return self.rooms
-    def check_new(self, room: str, username: str):
-        return room not in self.online or username not in self.online[room]
 
-        
+    def check_new(self, server_id: str, room: str, username: str):
+        key = (server_id, room)
+        return key not in self.online or username not in self.online[key]
+
 
 manager = ConnectionManager()

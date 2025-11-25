@@ -241,8 +241,7 @@ export default function Sidebar({
               <div
                 key={room.name}
                 className={
-                  "channel-item" +
-                  (room.name === activeRoomName ? " active" : "")
+                  "channel-item" + (room.id === activeRoomName ? " active" : "")
                 }
                 onClick={() => onSelectRoom(room.name, room.id)}
                 data-name={room.name}

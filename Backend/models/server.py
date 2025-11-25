@@ -13,6 +13,7 @@ class Server(Base):
     room = relationship('Room' , back_populates='server' , cascade="all, delete-orphan")
     users = relationship('ServerUser' ,back_populates='server' ,   cascade="all, delete-orphan",
         passive_deletes=True)
+    message = relationship('Message' , back_populates='server' , passive_deletes=True)
 
 # users = [
 #     owner_id,

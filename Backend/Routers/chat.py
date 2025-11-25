@@ -33,43 +33,61 @@ def get_all_user(db:Session = Depends(get_db)) :
 def delete_user(id ,  db:Session = Depends(get_db)) :
         get_user = db.query(User).filter(User.id == id ).first()
         if  get_user :
-            db.delete(get_user)
+            db.delete(get_user) 
             db.commit()
             return "user deleted successfully"
         else :
              return f'There is no user with this {id}'
-@router.websocket('/ws/{room}/{username}')
-async def chatSocket(websocket: WebSocket, room: str, username: str , db:Session = Depends(get_db)):
-    
-    get_room = db.query(Room).filter(Room.name == room).first()
-    if not get_room :
-         await websocket.close(code=4001)
-         print(f'there is no room like {room}')
-         return 
+@router.websocket('/ws/{server_id}/{room}/{username}')
+async def chatSocket(websocket: WebSocket, server_id : str , room: str, username: str , db:Session = Depends(get_db)):
+        print("This is the active room which is are running : " ,room)
+        data = {
+            "server_id" :server_id , 
+            "room" : room , 
+            "username" :username
+        }
+        print(data) 
+        get_room =  db.query(Room).filter((Room.server_id == server_id) & (Room.name == room)).first()
+        if not get_room :
+            await websocket.close(code=4001)
+            print(f'there is no room like {room}')
+            return 
+        print("This is the room which is getting connected : " ,get_room.server_id)
+        
 
 
-    await manager.connect(websocket , room , username)
-    
-    try:
-         while True :
-              data = await websocket.receive_text()
-              new_msg = Message(room = get_room.id , sender = username , content = data)
-              db.add(new_msg)
-              db.commit()
-              db.refresh(new_msg)
-             # broadcast a structured payload so clients can render correctly
-              payload = {"sender": username, "content": data}
-              await manager.broadcast(room ,websocket, payload)
-    except WebSocketDisconnect :
-         manager.disconnect(websocket, room)
-         message = f'{username} left the chat'
-         
+        await manager.connect(websocket, server_id , room , username)
+        
+        try:
+            while True :
+                data = await websocket.receive_text()
+                new_msg = Message(room = get_room.id ,server_id = server_id,  sender = username , content = data)
+                message = {
+                    'room' : get_room.id , 
+                    'server_id' : server_id , 
+                    'sender' : username , 
+                    'content' : data
+                }
+                print("This is the message : " , message)
+                db.add(new_msg)
+                db.commit()
+                db.refresh(new_msg)
+                # broadcast a structured payload so clients can render correctly
+                payload = {"sender": username, "content": data}
+                await manager.broadcast(server_id , room ,websocket,  payload)
+        except WebSocketDisconnect :
+            manager.disconnect(websocket, server_id,  room )
+            message = f'{username} left the chat'
+            
 
 
 
 @router.post('/create_room' , response_model=RoomResponse , tags=['room']) 
 def create_room(data : RoomCreate , db:Session = Depends(get_db)):
-     get_room = db.query(Room).filter(Room.name == data.name).first()
+     get_room_from_server = db.query(Room).filter(Room.server_id == data.server_id)
+
+    #  get_room = db.query(Room).filter(Room.name == data.name).first()
+     get_room = data.name in get_room_from_server 
      if get_room :
         raise HTTPException(status_code=400 , detail='Room Already Exist')
      else :
@@ -125,9 +143,10 @@ def get_message(db:Session = Depends(get_db)) :
     return get_all  
 
 @router.get('/histroy')
-def get_history(room: str, db:Session = Depends(get_db) ) :
-     get_chats = db.query(Message).filter(Message.room == room).all()
-     return get_chats
+def get_history(room: str, server_id:str ,  db:Session = Depends(get_db) ) :
+     
+    get_chats = db.query(Message).filter(Message.room == room and Message.server_id == server_id).all()
+    return get_chats
 
 
 # for ServerUser model 
