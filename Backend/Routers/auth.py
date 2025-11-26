@@ -40,12 +40,6 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 
 
-def create_access_token(data : dict , expires : timedelta = None) :
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (expires if expires else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({'exp' : expire})
-    token = jwt.encode(to_encode , SECRET_KEY , algorithm=ALGORITHM)
-    return token 
 
 def decode_access_token(token: str):
 
@@ -62,9 +56,7 @@ def decode_access_token(token: str):
                             detail="Could not validate credentials",
                             headers={"WWW-Authenticate": "Bearer"})
 
-SECRET_KEY = "your-super-secret-key" 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  
+
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
