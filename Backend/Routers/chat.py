@@ -4,188 +4,180 @@ from fastapi import (
     HTTPException,
     status,
     WebSocket,
-    WebSocketDisconnect
+    WebSocketDisconnect,
+    Query
 )
-
 from sqlalchemy.orm import Session
 from Database.db import get_db
+from jose import JWTError, jwt
+
 from models.user import User
 from models.room import Room
 from models.message import Message
-from schemas.user_schema import UserOut, UserResponse
-from schemas.room_schema import RoomCreate, RoomResponse
-from ws.connection_manager import ConnectionManager
-from schemas.server_schema import ServerCreate , ServerResponse
 from models.server import Server
 from models.serveruser import ServerUser
-from schemas.server_user_schema import ServerUserResponse , CreateServerUser 
 
+from schemas.user_schema import UserOut, UserResponse
+from schemas.room_schema import RoomCreate, RoomResponse
+from schemas.server_schema import ServerCreate, ServerResponse
+from schemas.server_user_schema import ServerUserResponse
 
-router = APIRouter()
+from ws.connection_manager import ConnectionManager
+from Routers.auth import get_current_user  # JWT authentication
+
+router = APIRouter(tags=["main"])
 manager = ConnectionManager()
-@router.get('/')
-def get_all_user(db:Session = Depends(get_db)) :
-    users = db.query(User).all()
-    return users
 
 
-@router.delete('/{id}')
-def delete_user(id ,  db:Session = Depends(get_db)) :
-        get_user = db.query(User).filter(User.id == id ).first()
-        if  get_user :
-            db.delete(get_user) 
-            db.commit()
-            return "user deleted successfully"
-        else :
-             return f'There is no user with this {id}'
-@router.websocket('/ws/{server_id}/{room}/{username}')
-async def chatSocket(websocket: WebSocket, server_id : str , room: str, username: str , db:Session = Depends(get_db)):
-        print("This is the active room which is are running : " ,room)
-        data = {
-            "server_id" :server_id , 
-            "room" : room , 
-            "username" :username
-        }
-        print(data) 
-        get_room =  db.query(Room).filter((Room.server_id == server_id) & (Room.name == room)).first()
-        if not get_room :
-            await websocket.close(code=4001)
-            print(f'there is no room like {room}')
-            return 
-        print("This is the room which is getting connected : " ,get_room.server_id)
-        
+# ------------------------
+# USERS
+# ------------------------
+@router.get("/users", response_model=list[UserResponse])
+def get_all_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(User).all()
 
 
-        await manager.connect(websocket, server_id , room , username)
-        
-        try:
-            while True :
-                data = await websocket.receive_text()
-                new_msg = Message(room = get_room.id ,server_id = server_id,  sender = username , content = data)
-                message = {
-                    'room' : get_room.id , 
-                    'server_id' : server_id , 
-                    'sender' : username , 
-                    'content' : data
-                }
-                print("This is the message : " , message)
-                db.add(new_msg)
-                db.commit()
-                db.refresh(new_msg)
-                # broadcast a structured payload so clients can render correctly
-                payload = {"sender": username, "content": data}
-                await manager.broadcast(server_id , room ,websocket,  payload)
-        except WebSocketDisconnect :
-            manager.disconnect(websocket, server_id,  room )
-            message = f'{username} left the chat'
-            
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"detail": "User deleted successfully"}
 
 
-
-@router.post('/create_room' , response_model=RoomResponse , tags=['room']) 
-def create_room(data : RoomCreate , db:Session = Depends(get_db)):
-     get_room_from_server = db.query(Room).filter(Room.server_id == data.server_id)
-
-    #  get_room = db.query(Room).filter(Room.name == data.name).first()
-     get_room = data.name in get_room_from_server 
-     if get_room :
-        raise HTTPException(status_code=400 , detail='Room Already Exist')
-     else :
-        # Validate server exists before creating the room
-        server = db.query(Server).filter(Server.id == data.server_id).first()
-        if not server:
-            raise HTTPException(status_code=404, detail='Server not found')
-
-        new_room = Room(name= data.name , description = data.description, server_id=data.server_id)
-        db.add(new_room)
-        db.commit()
-        db.refresh(new_room)
-        return new_room
-
-@router.get('room/{server_id}' , tags = ['room']) 
-def get_room_by_server_Id(server_id , db:Session = Depends(get_db)) :
-    get_room = db.query(Room).filter(Room.server_id == server_id).all()
-    return get_room
-@router.post('/create_server' , response_model=ServerResponse , tags = ['server'])
-def create_server(data:ServerCreate , db:Session = Depends(get_db)) :
-    get_server = db.query(Server).filter(Server.name == data.name).first()
-
-    if(get_server) :
-        raise HTTPException(status_code=409 , detail='Server already exists')
-    new_server = Server(name =data.name , owner_id = data.owner_id)
+# ------------------------
+# SERVERS
+# ------------------------
+@router.post("/servers", response_model=ServerResponse)
+def create_server(data: ServerCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if db.query(Server).filter(Server.name == data.name).first():
+        raise HTTPException(status_code=409, detail="Server already exists")
+    new_server = Server(name=data.name, owner_id=current_user.id)
     db.add(new_server)
     db.commit()
     db.refresh(new_server)
     return new_server
 
-@router.get('/get_server' ,tags = ['server'])
-def get_server(id : str, db:Session = Depends(get_db)) :
-    servers = db.query(Server).join(ServerUser , Server.id == ServerUser.server_id).filter(ServerUser.user_id == id).all()
-    return servers
 
-@router.get('/get_room' , response_model=list[RoomResponse] , tags=['room'])
-def get_room(db:Session = Depends(get_db)):
-    get_room = db.query(Room).all()
-    return get_room
-
-@router.delete('/delete_room/{id}' , tags = ['room'])
-def delete_room(id , db:Session = Depends(get_db)) :
-    get_room = db.query(Room).filter(Room.id == id).first()
-    if(get_room) :
-         db.delete(get_room)
-         db.commit()
-         return get_room
-    else :
-         return "There is no room like this"
-@router.get('/get_message/')
-def get_message(db:Session = Depends(get_db)) :
-    get_all = db.query(Message).all()
-    return get_all  
-
-@router.get('/histroy')
-def get_history(room: str, server_id:str ,  db:Session = Depends(get_db) ) :
-     
-    get_chats = db.query(Message).filter(Message.room == room and Message.server_id == server_id).all()
-    return get_chats
+@router.get("/servers")
+def get_servers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Server).join(ServerUser, Server.id == ServerUser.server_id)\
+        .filter(ServerUser.user_id == current_user.id).all()
 
 
-# for ServerUser model 
-@router.post('/serverUser/{user_id}/{server_id}/{role}' , response_model=ServerUserResponse  ,tags = ['serverUser'])
-def create_server_user(user_id , server_id ,role ,  db : Session = Depends(get_db)):
-     new_server_user = ServerUser(user_id = user_id, server_id = server_id , role = role)
-     db.add(new_server_user)
-     db.commit()
-     db.refresh(new_server_user)
-     return new_server_user
+@router.delete("/servers/{server_id}")
+def delete_server(server_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+    if server.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the server owner can delete the server")
+    db.delete(server)
+    db.commit()
+    return {"detail": "Server deleted successfully"}
 
-@router.get('/serverUser/all' , tags = ['serverUser'])
-def get_all(db:Session = Depends(get_db)) :
-     get_all = db.query(ServerUser).all()
-     return get_all
 
-@router.get('/serverUser/{userId}',tags = ['serverUser'])
-def get_server_by_user(userId , db :Session =  Depends(get_db)) :
-    all_server = db.query(ServerUser).filter(ServerUser.user_id ==  userId).all()
-    return all_server
-
-@router.delete('/server/{server_id}', tags = ["server"]) 
-def delete_server(server_id , db:Session = Depends(get_db) ) :
-    server = db.query(Server).filter(Server.id == server_id)
-    if server :
-         db.delete(server)
-         return("Server Deleted Successfully")
-    else :
-         return("There is no server like this")
+# ------------------------
+# ROOMS
+# ------------------------
+@router.post("/rooms", response_model=RoomResponse)
+def create_room(data: RoomCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    server = db.query(Server).filter(Server.id == data.server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+    if db.query(Room).filter(Room.server_id == data.server_id, Room.name == data.name).first():
+        raise HTTPException(status_code=400, detail="Room already exists")
     
-@router.delete('/server', tags = ["server"]) 
-def delete_all_server(db:Session = Depends(get_db)):
-    all_server =  db.query(Server).all() 
-    db.delete(all_server)
-    return {"All servers are delete successfully"}
+    new_room = Room(name=data.name, description=data.description, server_id=data.server_id)
+    db.add(new_room)
+    db.commit()
+    db.refresh(new_room)
+    return new_room
 
-@router.get('/serverUser/{user_id}')
-def get_users_server(user_id , db:Session = Depends(get_db)) :
-     get_server = db.query(ServerUser).filter(ServerUser.user_id == user_id).all()
-     
-     return get_server
 
+@router.get("/rooms/{server_id}", response_model=list[RoomResponse])
+def get_rooms_by_server(server_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Room).filter(Room.server_id == server_id).all()
+
+
+@router.delete("/rooms/{room_id}")
+def delete_room(room_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    room = db.query(Room).filter(Room.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    server = db.query(Server).filter(Server.id == room.server_id).first()
+    if server.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only server owner can delete rooms")
+    
+    db.delete(room)
+    db.commit()
+    return {"detail": "Room deleted successfully"}
+
+
+# ------------------------
+# MESSAGES
+# ------------------------
+@router.get("/messages")
+def get_messages(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Message).all()
+
+
+@router.get("/history")
+def get_history(room_id: int = Query(...), server_id: int = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Message).filter(Message.room == room_id, Message.server_id == server_id).all()
+
+
+# ------------------------
+# SERVER USERS
+# ------------------------
+@router.post("/server_users/{user_id}/{server_id}/{role}", response_model=ServerUserResponse)
+def create_server_user(user_id: int, server_id: int, role: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    server_user = ServerUser(user_id=user_id, server_id=server_id, role=role)
+    db.add(server_user)
+    db.commit()
+    db.refresh(server_user)
+    return server_user
+
+
+@router.get("/server_users/{user_id}", response_model=list[ServerUserResponse])
+def get_servers_for_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(ServerUser).filter(ServerUser.user_id == user_id).all()
+
+
+# ------------------------
+# WEBSOCKET CHAT
+# ------------------------
+@router.websocket("/ws/{server_id}/{room}")
+async def chat_socket(websocket: WebSocket, server_id: int, room: str, token: str, db: Session = Depends(get_db)):
+    # Decode JWT
+    try:
+        payload = jwt.decode(token, "your-super-secret-key", algorithms=["HS256"])
+        username = payload.get("sub")
+        if username is None:
+            await websocket.close(code=1008)
+            return
+    except Exception:
+        await websocket.close(code=1008)
+        return
+
+    room_obj = db.query(Room).filter(Room.server_id == server_id, Room.name == room).first()
+    if not room_obj:
+        await websocket.close(code=4001)
+        return
+
+    await manager.connect(websocket, server_id, room, username)
+    try:
+        while True:
+            msg_text = await websocket.receive_text()
+            new_msg = Message(room=room_obj.id, server_id=server_id, sender=username, content=msg_text)
+            db.add(new_msg)
+            db.commit()
+            db.refresh(new_msg)
+            payload = {"sender": username, "content": msg_text}
+            await manager.broadcast(server_id, room, websocket, payload)
+    except WebSocketDisconnect:
+    
+        manager.disconnect(websocket, server_id, room)
