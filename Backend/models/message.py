@@ -7,8 +7,6 @@ class Message(Base) :
     __tablename__ = 'message'
     id = Column(String , primary_key=True ,  default=lambda: str(uuid.uuid1()))
     sender = Column(String , nullable=False)
-    room = Column(Integer , nullable=False)
-    server_id = Column(String , ForeignKey('server.id') , nullable=False)
+    room_id = Column(String , nullable=False)
     content = Column(String , nullable=False)
     timestamp = Column(DateTime , default=datetime.utcnow)
-    server = relationship('Server' , back_populates='message')

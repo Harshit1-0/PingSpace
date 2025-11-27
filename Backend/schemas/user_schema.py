@@ -1,5 +1,5 @@
 # schemas/user_schema.py
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 class UserCreate(BaseModel):
     username: str
@@ -10,11 +10,15 @@ class UserUpdate(BaseModel):
     password: str | None = None
 
 class UserOut(BaseModel):
-    id: str
+    id : str
     username: str
+    password:str
+    
 
     class Config:
         orm_mode = True
 
-class UserResponse(UserOut):
-    pass
+class UserResponse(BaseModel):
+    id :str 
+    username : str
+    

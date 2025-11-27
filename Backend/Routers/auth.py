@@ -10,7 +10,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from Database.db import get_db
 from models.user import User
-from schemas.user_schema import UserOut, UserResponse
+from schemas.user_schema import UserOut, UserResponse , UserCreate
 
 
 SECRET_KEY = "your-super-secret-key" 
@@ -70,7 +70,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 @router.post("/signup", response_model=UserResponse)
-def signup(user: UserOut, db: Session = Depends(get_db)):
+def signup(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.username == user.username).first()
     if existing_user:
         raise HTTPException(status_code=409, detail="Username already exists")
@@ -90,6 +90,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    token = create_access_token(data={"sub": str(user.id)})
+    token = create_access_token(data={"sub": str(user.id) , "username" : user.username})
     return {"access_token": token, "token_type": "bearer"}
 

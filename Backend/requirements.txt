@@ -8,3 +8,4 @@ cryptography
 alembic
 bcrypt == 3.2.0
 websockets
+python-multipart

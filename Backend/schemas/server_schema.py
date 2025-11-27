@@ -7,10 +7,16 @@ class ServerCreate(BaseModel):
 class ServerUpdate(BaseModel):
     name: str | None = None
 
+class UsersList(BaseModel) :
+    id : str
+    
+    username :str
+    
+
 class ServerResponse(BaseModel):
     id: str
     name: str
-    owner_id: str
+    admin_id: str
 
     class Config:
         orm_mode = True

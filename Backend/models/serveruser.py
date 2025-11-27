@@ -1,9 +1,11 @@
 from Database.db import Base
 from sqlalchemy import Integer, String, ForeignKey, Column
 from sqlalchemy.orm import relationship
+import uuid
 
 class ServerUser(Base):
     __tablename__ = 'server_user'
+    id = Column(String , primary_key=True , default = lambda:str(uuid.uuid1()))
 
     server_id = Column(
         String,

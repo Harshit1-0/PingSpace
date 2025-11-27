@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div>WebSocket Client</div>
+    <script>
+      const ws = new WebSocket(
+        `ws://localhost:8000/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxZDNhMWMwNi1jYjgyLTExZjAtOGE1Yi04ZDFhZmJhNzM1MjIiLCJ1c2VybmFtZSI6Im1haW4iLCJleHAiOjE3NjQyNTUwNjF9.yGDFzpuJDHOe_JQxj50aIN0vDCDrf3lail26uQjKUJo`
+      );
+
+      ws.onopen = () => {
+        console.log("Connected");
+      };
+
+      ws.onmessage = (event) => {
+        console.log("Message:", event.data);
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      ws.onclose = (event) => {
+        console.log("Closed:", event.code, event.reason);
+      };
+
+      // Send messages
+      ws.send("Hello server!");
+    </script>
+  </body>
+</html>
