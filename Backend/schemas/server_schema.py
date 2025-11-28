@@ -11,6 +11,7 @@ class UsersList(BaseModel) :
     id : str
     
     username :str
+    role:str
     
 
 class ServerResponse(BaseModel):
