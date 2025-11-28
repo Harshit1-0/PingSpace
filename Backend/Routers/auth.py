@@ -13,7 +13,7 @@ from models.user import User
 from schemas.user_schema import UserOut, UserResponse , UserCreate
 
 
-SECRET_KEY = "your-super-secret-key" 
+SECRET_KEY = "key" 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  
 
@@ -69,7 +69,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
-@router.post("/signup", response_model=UserResponse)
+@router.post("/signup", response_model= UserResponse)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.username == user.username).first()
     if existing_user:

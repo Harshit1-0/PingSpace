@@ -38,6 +38,10 @@ manager = ConnectionManager()
 # ------------------------
 @router.get("/users", response_model=list[UserOut] , tags = ['user'])
 def get_all_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+
+    if not current_user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    
     return db.query(User).all()
 
 @router.get("/users/{user_id}", response_model=UserOut , tags = ['user'])
@@ -50,6 +54,11 @@ def get_user(user_id: str, db: Session = Depends(get_db), current_user: User = D
 @router.put("/users/{user_id}", response_model=UserOut , tags = ['user'])
 def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = db.query(User).filter(User.id == user_id).first()
+    if not current_user.id == user_id :
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    user = db.query(User).filter(User.username == payload.username).first()
+    
+        
     if not user:
         raise HTTPException(404, "User not found")
     if payload.username:
@@ -64,11 +73,13 @@ def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)
 
 @router.delete("/users/{user_id}" , tags = ['user'])
 def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+
     user = db.query(User).filter(User.id == user_id).first()
     
 
     if not user:
         raise HTTPException(404, "User not found")
+    
     if current_user.id == user_id :
     
         db.delete(user)
@@ -81,7 +92,6 @@ def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User 
 # ------------------------
 @router.post("/servers", response_model=ServerResponse , tags = ['server'])
 def create_server(data: ServerCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    print(data.name)
     if not data.name or data.name.strip() == "" :
         raise HTTPException(status.HTTP_400_BAD_REQUEST , detail = "Please enter the server name")
     new_server = Server(name=data.name, admin_id=current_user.id)
@@ -96,7 +106,7 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db), current_use
 
 @router.get("/servers", response_model=list[ServerResponse] , tags = ['server'])
 def get_servers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # servers where user is member
+
     server_ids = [su.server_id for su in db.query(ServerUser).filter(ServerUser.user_id == current_user.id).all()]
     return db.query(Server).filter(Server.id.in_(server_ids)).all()
 
@@ -137,16 +147,13 @@ def delete_server(server_id: str, db: Session = Depends(get_db), current_user: U
         raise HTTPException(404, "Server not found")
     if server.admin_id != current_user.id:
         raise HTTPException(403, "Only the server admin can delete the server")
-    # delete server users and rooms/messages cascade manually (simple approach)
-    db.query(ServerUser).filter(ServerUser.server_id == server_id).delete()
-    db.query(Message).filter(Message.server_id == server_id).delete()
-    db.query(Room).filter(Room.server_id == server_id).delete()
+
     db.delete(server)
     db.commit()
     return {"detail": "Server deleted successfully"}
 
 # ------------------------
-# ROOMS - Full CRUD
+# ROOMS - CRUD
 # ------------------------
 @router.post("/rooms", response_model=RoomResponse , tags = ['room'])
 def create_room(data: RoomCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -156,7 +163,6 @@ def create_room(data: RoomCreate, db: Session = Depends(get_db), current_user: U
                                                 ServerUser.role == "admin").first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-    # only members can create rooms
 
     if not admin_check:
         raise HTTPException(status_code=403, detail="only admin can make the room")
@@ -225,9 +231,8 @@ def post_message(payload: MessageCreate, db: Session = Depends(get_db), current_
     if not membership :
         raise HTTPException(status_code=401 , detail = "not member of a server")
     
-    if not payload.content or len(payload.content) > 0:
+    if not payload.content or len(payload.content) == 0:
         raise HTTPException(400, "Message content invalid")
-    print("This is the payload : " , payload)
     new_msg = Message(room_id=payload.room_id, sender=current_user.username, content=payload.content)
     
     db.add(new_msg)
@@ -237,7 +242,12 @@ def post_message(payload: MessageCreate, db: Session = Depends(get_db), current_
 
 @router.get("/messages/{room_id}", response_model=list[MessageResponse] , tags = ['message'])
 def get_history(room_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not db.query(ServerUser).filter(ServerUser.user_id == current_user.id).first():
+    room = db.query(Room).filter(Room.id == room_id).first()
+    if not room:
+        raise HTTPException(404, "Room not found")
+    membership = db.query(ServerUser).filter(ServerUser.user_id == current_user.id , ServerUser.server_id == room.server_id).first()
+
+    if not membership:
         raise HTTPException(403, "Not a member of server")
     return db.query(Message).filter(Message.room_id == room_id).order_by(Message.timestamp).all()
 
@@ -288,22 +298,15 @@ def create_server_user(payload: ServerUserCreate, db: Session = Depends(get_db),
     db.refresh(su)
     return su
 
-@router.get("/server_users/{user_id}", response_model=list[ServerUserResponse], tags=['server user'])
-def get_servers_for_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    
-    if user_id != current_user.id:
-        ok = db.query(ServerUser).filter(
-            ServerUser.user_id == current_user.id,
-            ServerUser.role == "admin"
-        ).first()
-        if not ok:
-            raise HTTPException(403, "Not authorized")
-    
-    return db.query(ServerUser).filter(ServerUser.user_id == user_id).all()
-
 
 @router.get('/server_user/{server_id}' , response_model=list[UsersList] ,tags= ['server user']) 
 def get_users_list(server_id ,db:Session = Depends(get_db)  , current_user : User = Depends(get_current_user)) :
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server :
+        raise HTTPException(404, "Server not found")
+    if not db.query(ServerUser).filter(ServerUser.server_id == server_id , ServerUser.user_id == current_user.id).first() :
+        raise HTTPException(403, "Not a member of server")
+    
     userList = db.query(User.id , User.username , ServerUser.role).join(ServerUser , ServerUser.user_id == User.id).filter(ServerUser.server_id == server_id).all()
     return userList
 
@@ -322,28 +325,24 @@ def delete_server_user(su_id: str, db: Session = Depends(get_db), current_user: 
 # ------------------------
 # WEBSOCKET CHAT
 # ------------------------
-
-
-
 class RateLimiter:
     def __init__(self):
         self.user_messages = defaultdict(list)
     
-    def can_send_message(self, username: str, max_messages: int = 10, seconds: int = 10) -> bool:
+    def can_send_message(self, username: str, max_messages: int = 10, seconds: int = 10):
         
-        now = datetime.now()
-        cutoff_time = now - timedelta(seconds=seconds)
+        now = datetime.now() 
+        cutoff_time = now - timedelta(seconds=seconds) 
         
-        # Remove old messages outside the time window
         self.user_messages[username] = [
-            msg_time for msg_time in self.user_messages[username]
+            msg_time for msg_time in self.user_messages[username] 
             if msg_time > cutoff_time
         ]
         
         if len(self.user_messages[username]) >= max_messages:
             return False  
         
-        self.user_messages[username].append(now)
+        self.user_messages[username].append(now) 
         return True  
 
 rate_limiter = RateLimiter()
@@ -355,7 +354,7 @@ async def chat_socket(websocket: WebSocket, room_id: str, token: str = Query(...
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("username")
-        print("Decoded username:", username)
+
         if username is None:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token: username not found")
             return

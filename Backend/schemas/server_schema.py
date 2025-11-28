@@ -13,6 +13,8 @@ class UsersList(BaseModel) :
     username :str
     role:str
     
+    class Config :
+        orm_mode = True
 
 class ServerResponse(BaseModel):
     id: str

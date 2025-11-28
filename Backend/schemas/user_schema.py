@@ -9,6 +9,11 @@ class UserUpdate(BaseModel):
     username: str | None = None
     password: str | None = None
 
+class UserResponse(BaseModel):
+    id :str 
+    username : str
+    class Config:
+        orm_mode = True
 class UserOut(BaseModel):
     id : str
     username: str
@@ -18,7 +23,5 @@ class UserOut(BaseModel):
     class Config:
         orm_mode = True
 
-class UserResponse(BaseModel):
-    id :str 
-    username : str
+
     

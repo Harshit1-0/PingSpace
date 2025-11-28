@@ -9,5 +9,7 @@ class User(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid1()))
     username = Column(String, unique=True)
     password = Column(String)
-    server = relationship("Server", back_populates='admin')
-    servers = relationship("ServerUser" , back_populates='user')
+
+    servers_admin = relationship("Server", back_populates='admin')
+
+    memberships = relationship("ServerUser", back_populates='user')

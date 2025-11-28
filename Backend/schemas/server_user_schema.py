@@ -11,6 +11,5 @@ class ServerUserResponse(BaseModel):
     user_id: str
     server_id: str
     role: str
-
     class Config:
         orm_mode = True
