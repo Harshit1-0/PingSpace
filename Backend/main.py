@@ -10,21 +10,19 @@ app = FastAPI()
 
 # Allowed origins (frontend URLs)
 origins = [
-    "http://localhost:5173",           
-    "http://127.0.0.1:5173",           
-    "https://pingspace1.vercel.app", 
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://pingspace1.vercel.app",
     "http://localhost:4173",
-    "*"  
 ]
 
-# Add CORS middleware - IMPORTANT: Must be added before exception handlers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
-    allow_credentials=True,       
-    allow_methods=["*"],          
+    allow_origins=origins,  # cannot be "*"
+    allow_credentials=True,  
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]           
+    expose_headers=["*"]
 )
 
 # Exception handler for HTTPException to ensure CORS headers

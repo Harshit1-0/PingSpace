@@ -31,7 +31,7 @@ export default function ChatLayout() {
   console.log("this is how chat look like : ", chat);
   if (token) {
     const jwt_token = jwtDecode<TokenPayload>(token);
-    username = jwt_token.sub;
+    username = jwt_token.username;
     userId = jwt_token.id;
   }
   let ws = useRef<WebSocket | null>(null);
@@ -41,7 +41,7 @@ export default function ChatLayout() {
     const get_data = async () => {
       try {
         const res = await fetch(
-          `${baseUrl}/chat/histroy?room=${
+          `${baseUrl}/histroy?room=${
             roomID?.toString() || ""
           }&server_id=${activeServerId}`,
           options("GET")
@@ -72,9 +72,7 @@ export default function ChatLayout() {
       activeServerId + "this the room ",
       room
     );
-    ws.current = new WebSocket(
-      `${wsUrl}/chat/ws/${activeServerId}/${room}/${username}`
-    );
+    ws.current = new WebSocket(`${wsUrl}/chat/ws/${room}/?token=${token}`);
 
     ws.current.onopen = () => console.log("WebSocket connected");
     ws.current.onmessage = (event) => {
@@ -92,7 +90,7 @@ export default function ChatLayout() {
     ws.current.onclose = () => console.log("WebSocket closed");
 
     return () => ws.current?.close();
-  }, [room, username, activeServerId]);
+  }, [roomID]);
 
   // useEffect(() => {});
   const selectedRoom = (roomName: string, id: any) => {
@@ -101,7 +99,7 @@ export default function ChatLayout() {
     setIsSidebarOpen(false);
   };
   const getServer = async () => {
-    const url = `${baseUrl}/chat/get_server?id=${userId}`;
+    const url = `${baseUrl}/get_server?id=${userId}`;
     const res = await fetch(url);
     const ans = await res.json();
     setServer(ans);

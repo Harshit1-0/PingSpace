@@ -8,31 +8,36 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-
+  
   const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  e.preventDefault();
+  setError(null);
 
-    try {
-      const response = await fetch(
-        `${baseUrl}/signup`,
-        options("POST", null, { username, password }, true)
-      );
+  try {
+    const response = await fetch(`${baseUrl}/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ username, password }),
+    });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        setError(errData.detail || "Failed to create account");
-        return;
-      }
-
-      const data = await response.json();
-      console.log("Signup success:", data);
-      navigate("/");
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong. Please try again later.");
+    if (!response.ok) {
+      const errData = await response.json();
+      setError(errData.detail || "Failed to create account");
+      return;
     }
-  };
+
+    const data = await response.json();
+    console.log("Signup success:", data);
+    navigate("/");
+  } catch (err) {
+    console.error(err);
+    setError("Something went wrong. Please try again later.");
+  }
+};
+
 
   return (
     <div className="auth-container">

@@ -79,7 +79,7 @@ export default function Sidebar({
     };
     try {
       const res = await fetch(
-        `${baseUrl}/chat/create_room`,
+        `${baseUrl}/create_room`,
         options("POST", tokenString, payload)
       );
       await res.json();

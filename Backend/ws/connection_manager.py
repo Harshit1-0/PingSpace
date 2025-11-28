@@ -2,14 +2,13 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
-        self.rooms = {} #{(room_id) : [sockets]}
-        self.socket_to_username = {} #{socket: username}              
+        self.rooms = {}
+        self.deleted_rooms = {}
+        self.socket_to_username = {}               
 
 
     async def connect(self, websocket: WebSocket, room_id :str , username:str):
-        # Note: websocket.accept() should be called in the endpoint before calling this method
-
-        # key = (server_id, room)
+        
 
         if room_id not in self.rooms:
             self.rooms[room_id] = []
@@ -28,7 +27,6 @@ class ConnectionManager:
             self.rooms[room_id].remove(websocket) 
 
     async def broadcast(self, room_id: str, message):
-        # key = (server_id, room)
 
         if room_id not in self.rooms:
             return

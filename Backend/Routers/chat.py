@@ -104,10 +104,13 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db), current_use
     db.commit()
     return new_server
 
-@router.get("/servers", response_model=list[ServerResponse] , tags = ['server'])
+@router.get("/servers", tags = ['server'])
 def get_servers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
 
     server_ids = [su.server_id for su in db.query(ServerUser).filter(ServerUser.user_id == current_user.id).all()]
+    # servers = db.query(Server).\
+    # join(ServerUser , Server.id == ServerUser.server_id).filter(ServerUser.user_id == current_user.id).all()
+    # return servers
     return db.query(Server).filter(Server.id.in_(server_ids)).all()
 
 
@@ -140,8 +143,11 @@ def update_server(server_id: str, payload: ServerUpdate, db: Session = Depends(g
     db.refresh(server)
     return server
 
+
+
 @router.delete("/servers/{server_id}" , tags = ['server'])
 def delete_server(server_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(404, "Server not found")
@@ -155,12 +161,16 @@ def delete_server(server_id: str, db: Session = Depends(get_db), current_user: U
 # ------------------------
 # ROOMS - CRUD
 # ------------------------
-@router.post("/rooms", response_model=RoomResponse , tags = ['room'])
+@router.post("/rooms", tags = ['room'])
 def create_room(data: RoomCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     server = db.query(Server.admin_id).filter(Server.id == data.server_id).first()
+
     admin_check = db.query(ServerUser).filter(ServerUser.server_id == data.server_id, 
                                                 ServerUser.user_id == current_user.id, 
                                                 ServerUser.role == "admin").first()
+    # name = db.query(User.username).join(ServerUser , User.id == ServerUser.user_id).\
+    #     filter(ServerUser.server_id == data.server_id).first()
+    # return name
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
 
@@ -287,7 +297,8 @@ def create_server_user(payload: ServerUserCreate, db: Session = Depends(get_db),
     server = db.query(Server).filter(Server.id == payload.server_id).first()
     if not server:
         raise HTTPException(404, "Server not found")
-    admin_check = db.query(ServerUser).filter(ServerUser.server_id == payload.server_id, ServerUser.user_id == current_user.id).first()
+    admin_check = db.query(ServerUser).filter(ServerUser.server_id == payload.server_id, ServerUser.user_id == current_user.id).first().server
+    
     if not admin_check or (server.admin_id != current_user.id and admin_check.role not in ("admin", "admin")):
         raise HTTPException(403, "Only admin/admin can add users")
     if db.query(ServerUser).filter(ServerUser.user_id == payload.user_id, ServerUser.server_id == payload.server_id).first():
