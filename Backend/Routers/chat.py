@@ -8,6 +8,7 @@ from fastapi import (
     Query,
     status
 )
+from jose.exceptions import JWTError
 from sqlalchemy.orm import Session
 from Database.db import get_db
 from jose import jwt
@@ -26,11 +27,11 @@ from schemas.server_user_schema import ServerUserCreate, ServerUserResponse
 from Routers.auth import hash_password
 
 from ws.connection_manager import ConnectionManager
-from Routers.auth import get_current_user
-from datetime import datetime
+from Routers.auth import get_current_user, SECRET_KEY, ALGORITHM
+from datetime import datetime, timedelta
+from collections import defaultdict
 router = APIRouter()
 manager = ConnectionManager()
-JWT_SECRET = "your-super-secret-key"
 
 # ------------------------
 # USERS - Full CRUD
@@ -59,7 +60,7 @@ def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user #4
+    return user 
 
 @router.delete("/users/{user_id}" , tags = ['user'])
 def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -81,7 +82,7 @@ def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User 
 @router.post("/servers", response_model=ServerResponse , tags = ['server'])
 def create_server(data: ServerCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     print(data.name)
-    if not data.name or data.name.strip == "" :
+    if not data.name or data.name.strip() == "" :
         raise HTTPException(status.HTTP_400_BAD_REQUEST , detail = "Please enter the server name")
     new_server = Server(name=data.name, admin_id=current_user.id)
     db.add(new_server)
@@ -213,19 +214,22 @@ def delete_room(room_id: str, db: Session = Depends(get_db), current_user: User 
     return {"detail": "Room deleted successfully"}
 
 # ------------------------
-# MESSAGES - CRUD (create + query + delete)
+# MESSAGES - CRUD 
 # ------------------------
 @router.post("/messages", response_model=MessageResponse , tags = ['message'])
 def post_message(payload: MessageCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)): 
-
-    membership = db.query(ServerUser).filter(ServerUser.user_id == current_user.id).first() 
-    if not membership :
-        raise HTTPException(status_code=401 , detail = "not member of a server")
-    print("This is the payload : " , payload)
     room = db.query(Room).filter(Room.id == payload.room_id).first()
     if not room:
         raise HTTPException(404, "Room not found")
+    membership = db.query(ServerUser).filter(ServerUser.user_id == current_user.id , ServerUser.server_id == room.server_id).first() 
+    if not membership :
+        raise HTTPException(status_code=401 , detail = "not member of a server")
+    
+    if not payload.content or len(payload.content) > 0:
+        raise HTTPException(400, "Message content invalid")
+    print("This is the payload : " , payload)
     new_msg = Message(room_id=payload.room_id, sender=current_user.username, content=payload.content)
+    
     db.add(new_msg)
     db.commit()
     db.refresh(new_msg)
@@ -237,28 +241,35 @@ def get_history(room_id: str, db: Session = Depends(get_db), current_user: User 
         raise HTTPException(403, "Not a member of server")
     return db.query(Message).filter(Message.room_id == room_id).order_by(Message.timestamp).all()
 
-@router.delete("/messages/{message_id}" , tags = ['message'])
+@router.delete("/messages/{message_id}", tags=['message'])
 def delete_message(message_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     msg = db.query(Message).filter(Message.id == message_id).first()
     if not msg:
         raise HTTPException(404, "Message not found")
-    # allow sender or server admin to delete
+    
     room = db.query(Room).filter(Room.id == msg.room_id).first()
-    admin_condition = db.query(ServerUser).filter(ServerUser.user_id == current_user.id , ServerUser.role == "admin").first()
-         
-    if msg.sender != current_user.username : 
-        if not admin_condition: #I need to add the authority to admin to delete 
-            raise HTTPException(403, "Not authorized to delete message")
-        else :
-            db.delete(msg)
-            db.commit()
-            return{"detail" : "Message deleted by admin"}
+    if not room:
+        raise HTTPException(404, "Room not found")
+    
+    is_sender = msg.sender == current_user.username
+    is_admin = db.query(ServerUser).filter(
+        ServerUser.user_id == current_user.id,
+        ServerUser.server_id == room.server_id,
+        ServerUser.role == "admin"
+    ).first()
+    
+    if not (is_sender or is_admin):
+        raise HTTPException(403, "Not authorized to delete message")
+    
     db.delete(msg)
     db.commit()
-    return {"detail": "Message deleted"}
+    
+    return {
+        "detail": "Message deleted by admin" if is_admin and not is_sender else "Message deleted"
+    }
 
 # ------------------------
-# SERVER USERS - Full CRUD
+# SERVER USERS
 # ------------------------
 @router.post("/server_users", response_model=ServerUserResponse , tags = ['server user'])
 def create_server_user(payload: ServerUserCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -277,23 +288,23 @@ def create_server_user(payload: ServerUserCreate, db: Session = Depends(get_db),
     db.refresh(su)
     return su
 
-@router.get("/server_users/{user_id}", response_model=list[ServerUserResponse] , tags = ['server user'])
+@router.get("/server_users/{user_id}", response_model=list[ServerUserResponse], tags=['server user'])
 def get_servers_for_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # only the same user or admin of servers can query
-    print(f"This is the id : {0} : {1}" , user_id , current_user.id)
+    
     if user_id != current_user.id:
-        # allow if current_user has admin in any of the same servers
-        # ok = db.query(ServerUser).filter(ServerUser.user_id == current_user.id, ServerUser.role.in_(["admin","admin"])).first()
-        ok = db.query(ServerUser).filter(ServerUser.user_id == current_user.id).first()
+        ok = db.query(ServerUser).filter(
+            ServerUser.user_id == current_user.id,
+            ServerUser.role == "admin"
+        ).first()
         if not ok:
             raise HTTPException(403, "Not authorized")
+    
     return db.query(ServerUser).filter(ServerUser.user_id == user_id).all()
-
 
 
 @router.get('/server_user/{server_id}' , response_model=list[UsersList] ,tags= ['server user']) 
 def get_users_list(server_id ,db:Session = Depends(get_db)  , current_user : User = Depends(get_current_user)) :
-    userList = db.query(User.id , User.username).join(ServerUser , ServerUser.user_id == User.id).filter(ServerUser.server_id == server_id).all()
+    userList = db.query(User.id , User.username , ServerUser.role).join(ServerUser , ServerUser.user_id == User.id).filter(ServerUser.server_id == server_id).all()
     return userList
 
 @router.delete("/server_users/{su_id}" , tags = ['server user'])
@@ -314,69 +325,86 @@ def delete_server_user(su_id: str, db: Session = Depends(get_db), current_user: 
 
 
 
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str):
-    # Verify token BEFORE accepting
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        user_id = payload.get("username")
-    except jwt.InvalidTokenError:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
-        return
+class RateLimiter:
+    def __init__(self):
+        self.user_messages = defaultdict(list)
     
-    # Now accept the connection
-    await websocket.accept()
-    
-    try:
-        await websocket.send_json({"type": "connection", "message": "Connected successfully"})
+    def can_send_message(self, username: str, max_messages: int = 10, seconds: int = 10) -> bool:
         
-        # Message loop - keeps connection alive
-        while True:
-            message = await websocket.receive_text()
-            
-            # Your message handling logic
-            await websocket.send_json({
-                "type": "echo",
-                "data": message,
-                "user_id": user_id
-            })
-            
-    except WebSocketDisconnect:
-        print(f"User {user_id} disconnected")
-    except Exception as e:
-        print(f"Error for user {user_id}: {e}")
-        await websocket.close(code=1011)
+        now = datetime.now()
+        cutoff_time = now - timedelta(seconds=seconds)
+        
+        # Remove old messages outside the time window
+        self.user_messages[username] = [
+            msg_time for msg_time in self.user_messages[username]
+            if msg_time > cutoff_time
+        ]
+        
+        if len(self.user_messages[username]) >= max_messages:
+            return False  
+        
+        self.user_messages[username].append(now)
+        return True  
 
+rate_limiter = RateLimiter()
 
 
 @router.websocket("/ws/{room_id}")
-async def chat_socket(websocket: WebSocket, room_id: str, token: str, db: Session = Depends(get_db)):
-    print(f"WebSocket connection attempt: room_id={room_id}, token={token}")
+async def chat_socket(websocket: WebSocket, room_id: str, token: str = Query(...), db: Session = Depends(get_db)):
     
-    # Decode JWT (token param)
-   
-    payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-    username = payload.get("username")
-    print("Decoded username:", username)
-    if username is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("username")
+        print("Decoded username:", username)
+        if username is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token: username not found")
+            return
+    except (JWTError, jwt.InvalidTokenError) as e:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=f"Invalid token: {str(e)}")
         return
-    
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="User not found")
+        return
 
     room_obj = db.query(Room).filter(Room.id == room_id).first()
     if not room_obj:
-        await websocket.close(code=4001)
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Room not found")
         return
 
+    membership = db.query(ServerUser).filter(
+        ServerUser.user_id == user.id,
+        ServerUser.server_id == room_obj.server_id
+    ).first()
+    
+    if not membership:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Not a member of this server")
+        return
+
+    await websocket.accept()
+    
     await manager.connect(websocket, room_id, username)
     try:
         while True:
             msg_text = await websocket.receive_text()
-            new_msg = Message(room=room_obj.id, sender=username, content=msg_text)
+            
+            if not rate_limiter.can_send_message(username):
+                await websocket.send_json({
+                    "error": "You're sending messages too fast. Please slow down.",
+                    "type": "rate_limit"
+                })
+                continue  
+            
+            new_msg = Message(room_id=room_obj.id, sender=username, content=msg_text)
             db.add(new_msg)
             db.commit()
             db.refresh(new_msg)
-            payload = {"sender": username, "content": msg_text, "created_at": str(new_msg.created_at)}
-            await manager.broadcast(room_id, websocket, payload)
+            payload = {"sender": username, "content": msg_text, "created_at": str(new_msg.timestamp)}
+            await manager.broadcast(room_id, payload)
+            
     except WebSocketDisconnect:
+        manager.disconnect(websocket, room_id)
+    except Exception as e:
+        print(f"Error in chat_socket: {e}")
         manager.disconnect(websocket, room_id)

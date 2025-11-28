@@ -7,7 +7,7 @@ class ConnectionManager:
 
 
     async def connect(self, websocket: WebSocket, room_id :str , username:str):
-        await websocket.accept()
+        # Note: websocket.accept() should be called in the endpoint before calling this method
 
         # key = (server_id, room)
 
@@ -16,7 +16,7 @@ class ConnectionManager:
 
         self.rooms[room_id].append(websocket)
         print("This are self.rooms" , self.rooms)
-     
+    
 
         self.socket_to_username[websocket] = username
 

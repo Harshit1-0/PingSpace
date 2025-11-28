@@ -13,16 +13,18 @@ origins = [
     "http://localhost:5173",           
     "http://127.0.0.1:5173",           
     "https://pingspace1.vercel.app", 
-    "http://localhost:4173"  
+    "http://localhost:4173",
+    "*"  
 ]
 
 # Add CORS middleware - IMPORTANT: Must be added before exception handlers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,      
+    allow_origins=["*"],  
     allow_credentials=True,       
     allow_methods=["*"],          
-    allow_headers=["*"],          
+    allow_headers=["*"],
+    expose_headers=["*"]           
 )
 
 # Exception handler for HTTPException to ensure CORS headers
@@ -31,7 +33,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     # Check if origin is in allowed origins
     origin = request.headers.get("origin")
     cors_headers = {}
-    if origin and origin in origins:
+    if origin:
         cors_headers["Access-Control-Allow-Origin"] = origin
         cors_headers["Access-Control-Allow-Credentials"] = "true"
     
@@ -51,7 +53,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     # Check if origin is in allowed origins
     origin = request.headers.get("origin")
     cors_headers = {}
-    if origin and origin in origins:
+    if origin:
         cors_headers["Access-Control-Allow-Origin"] = origin
         cors_headers["Access-Control-Allow-Credentials"] = "true"
     
@@ -68,7 +70,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     # Check if origin is in allowed origins
     origin = request.headers.get("origin")
     cors_headers = {}
-    if origin and origin in origins:
+    if origin:
         cors_headers["Access-Control-Allow-Origin"] = origin
         cors_headers["Access-Control-Allow-Credentials"] = "true"
     
@@ -78,9 +80,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         headers=cors_headers
     )
 
-# Create database tables
 Base.metadata.create_all(bind=engine)
 
-# Routers
-app.include_router(chat.router, prefix="/chat")
-app.include_router(auth.router, prefix="")
+# Routers - No prefix needed
+app.include_router(chat.router)
+app.include_router(auth.router)
+
+@app.get("/")
+async def root():
+    return {"message": "PingSpace API is running", "websocket": "/ws/{room_id}"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
