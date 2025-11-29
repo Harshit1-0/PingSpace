@@ -12,5 +12,5 @@ class Server(Base):
     admin_id = Column(String, ForeignKey('user.id'))
     admin = relationship('User', back_populates='servers_admin')
 
-    rooms = relationship('Room', back_populates='server', cascade="all, delete")
+    rooms = relationship('Room', back_populates='server', cascade="all, delete")                                                                                                                                                
     users = relationship('ServerUser', back_populates='server', cascade="all, delete")

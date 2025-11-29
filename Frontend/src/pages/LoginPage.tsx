@@ -22,7 +22,10 @@ export default function LoginPage() {
       },
       credentials: "include",
 
-      body: new URLSearchParams({ username, password }).toString(),
+      body: new URLSearchParams({
+        username,
+        password,
+      }).toString(),
     };
     try {
       const response = await fetch(`${baseUrl}/login`, option);

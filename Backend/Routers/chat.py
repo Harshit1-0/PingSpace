@@ -26,12 +26,11 @@ from schemas.message_schema import MessageResponse, MessageCreate
 from schemas.server_user_schema import ServerUserCreate, ServerUserResponse
 from Routers.auth import hash_password
 
-from ws.connection_manager import ConnectionManager
+from ws.connection_manager import manager
 from Routers.auth import get_current_user, SECRET_KEY, ALGORITHM
 from datetime import datetime, timedelta
 from collections import defaultdict
 router = APIRouter()
-manager = ConnectionManager()
 
 # ------------------------
 # USERS - Full CRUD
@@ -162,7 +161,7 @@ def delete_server(server_id: str, db: Session = Depends(get_db), current_user: U
 # ROOMS - CRUD
 # ------------------------
 @router.post("/rooms", tags = ['room'])
-def create_room(data: RoomCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def create_room(data: RoomCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     server = db.query(Server.admin_id).filter(Server.id == data.server_id).first()
 
     admin_check = db.query(ServerUser).filter(ServerUser.server_id == data.server_id, 
@@ -182,6 +181,19 @@ def create_room(data: RoomCreate, db: Session = Depends(get_db), current_user: U
     db.add(new_room)
     db.commit()
     db.refresh(new_room)
+    
+    # Broadcast room creation event to all users in the server
+    room_data = {
+        "type": "room_created",
+        "room": {
+            "id": str(new_room.id),
+            "name": new_room.name,
+            "description": new_room.description,
+            "server_id": str(new_room.server_id)
+        }
+    }
+    await manager.broadcast_to_server(str(data.server_id), room_data)
+    
     return new_room
 
 @router.get("/rooms/{server_id}", response_model=list[RoomResponse], tags = ['room'])
@@ -291,16 +303,16 @@ def delete_message(message_id: str, db: Session = Depends(get_db), current_user:
 # ------------------------
 # SERVER USERS
 # ------------------------
-@router.post("/server_users", response_model=ServerUserResponse , tags = ['server user'])
+@router.post("/server/join", response_model=ServerUserResponse , tags = ['server user'])
 def create_server_user(payload: ServerUserCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # only server admin or admin can add
     server = db.query(Server).filter(Server.id == payload.server_id).first()
     if not server:
         raise HTTPException(404, "Server not found")
-    admin_check = db.query(ServerUser).filter(ServerUser.server_id == payload.server_id, ServerUser.user_id == current_user.id).first().server
+    # admin_check = db.query(ServerUser).filter(ServerUser.server_id == payload.server_id, ServerUser.user_id == current_user.id).first().server
     
-    if not admin_check or (server.admin_id != current_user.id and admin_check.role not in ("admin", "admin")):
-        raise HTTPException(403, "Only admin/admin can add users")
+    # if not admin_check or (server.admin_id != current_user.id and admin_check.role not in ("admin", "admin")):
+    #     raise HTTPException(403, "Only admin/admin can add users")
     if db.query(ServerUser).filter(ServerUser.user_id == payload.user_id, ServerUser.server_id == payload.server_id).first():
         raise HTTPException(409, "User already in server")
     su = ServerUser(user_id=payload.user_id, server_id=payload.server_id, role=payload.role)
@@ -361,7 +373,8 @@ rate_limiter = RateLimiter()
 
 @router.websocket("/ws/{room_id}")
 async def chat_socket(websocket: WebSocket, room_id: str, token: str = Query(...), db: Session = Depends(get_db)):
-    
+
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("username")
@@ -418,3 +431,53 @@ async def chat_socket(websocket: WebSocket, room_id: str, token: str = Query(...
     except Exception as e:
         print(f"Error in chat_socket: {e}")
         manager.disconnect(websocket, room_id)
+
+@router.websocket("/ws/server/{server_id}")
+async def server_socket(websocket: WebSocket, server_id: str, token: str = Query(...), db: Session = Depends(get_db)):
+    """WebSocket endpoint for server-level events (room creation, etc.)"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("username")
+
+        if username is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token: username not found")
+            return
+    except (JWTError, jwt.InvalidTokenError) as e:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=f"Invalid token: {str(e)}")
+        return
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="User not found")
+        return
+
+    # Verify server exists and user is a member
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Server not found")
+        return
+
+    membership = db.query(ServerUser).filter(
+        ServerUser.user_id == user.id,
+        ServerUser.server_id == server_id
+    ).first()
+    
+    if not membership:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Not a member of this server")
+        return
+
+    await websocket.accept()
+    await manager.connect_to_server(websocket, server_id, username)
+    
+    try:
+        while True:
+            # Keep connection alive and handle any incoming messages if needed
+            data = await websocket.receive_text()
+            # Echo back or handle client messages if needed
+            await websocket.send_json({"type": "pong", "message": "Connection alive"})
+    except WebSocketDisconnect:
+        manager.disconnect_from_server(websocket, server_id)
+    except Exception as e:
+        print(f"Error in server_socket: {e}")
+        manager.disconnect_from_server(websocket, server_id)
+

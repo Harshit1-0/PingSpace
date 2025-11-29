@@ -27,24 +27,23 @@ export default function ChatLayout() {
   let username: string | undefined = undefined;
   let userId: string | undefined = undefined;
   const token = localStorage.getItem("token");
-  type TokenPayload = { id: string; sub?: string };
+  // Backend token payload: {"sub": "<user_id>", "username": "<username>"}
+  type TokenPayload = { sub: string; username?: string };
   console.log("this is how chat look like : ", chat);
   if (token) {
     const jwt_token = jwtDecode<TokenPayload>(token);
     username = jwt_token.username;
-    userId = jwt_token.id;
+    userId = jwt_token.sub;
   }
   let ws = useRef<WebSocket | null>(null);
-  console.log("This is the server which active rn : ", activeServerId);
   console.log("This is the active room", room);
   useEffect(() => {
+    if (!roomID || !token) return;
     const get_data = async () => {
       try {
         const res = await fetch(
-          `${baseUrl}/histroy?room=${
-            roomID?.toString() || ""
-          }&server_id=${activeServerId}`,
-          options("GET")
+          `${baseUrl}/messages/${roomID?.toString() || ""}`,
+          options("GET", token)
         );
         if (!res.ok) {
           const text = await res.text();
@@ -62,17 +61,22 @@ export default function ChatLayout() {
   }, [roomID]);
 
   useEffect(() => {
+    if (!roomID || !token) return;
     //receiving message from backend
     if (!username) return;
     console.log("useeffect is called", room);
-    // ws.current?.close();
+    // Close any existing socket before opening a new one
+    ws.current?.close();
     const wsUrl = baseUrl.replace(/^http/, "ws"); // ws:// or wss://
     console.log(
       "this is the serverid this ",
       activeServerId + "this the room ",
       room
     );
-    ws.current = new WebSocket(`${wsUrl}/chat/ws/${room}/?token=${token}`);
+    console.log(wsUrl);
+    // Backend route is: @router.websocket("/ws/{room_id}")
+    // So final URL must be: ws://host/ws/<room_id>?token=<JWT>
+    ws.current = new WebSocket(`${wsUrl}/ws/${roomID}?token=${token}`);
 
     ws.current.onopen = () => console.log("WebSocket connected");
     ws.current.onmessage = (event) => {
@@ -99,10 +103,27 @@ export default function ChatLayout() {
     setIsSidebarOpen(false);
   };
   const getServer = async () => {
-    const url = `${baseUrl}/get_server?id=${userId}`;
-    const res = await fetch(url);
-    const ans = await res.json();
-    setServer(ans);
+    console.log(token);
+    const url = `${baseUrl}/servers`;
+    const option = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    };
+
+    try {
+      const res = await fetch(url, option);
+      if (!res.ok) {
+        throw new Error(`Error: ${res.status} - ${res.statusText}`);
+      }
+      const ans = await res.json();
+      console.log("this is the server", ans);
+      setServer(ans);
+    } catch (error) {
+      console.error("Fetch error:", error);
+    }
   };
 
   useEffect(() => {

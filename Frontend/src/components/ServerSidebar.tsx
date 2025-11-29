@@ -4,7 +4,12 @@ import { getToken, useAuthStore } from "../store/authStore";
 import { baseUrl } from "../helper/constant";
 import { jwtDecode } from "jwt-decode";
 import InputModal from "./InputModal";
-type Server = { name: string; id: string; owner_id: string };
+type Server = {
+  name: string;
+  id: string;
+  owner_id: string;
+  username?: string;
+};
 
 type ServerProps = {
   server?: Server[];
@@ -12,10 +17,8 @@ type ServerProps = {
   parent?: (serverId: string) => void;
   getServer?: () => void;
 };
-type TokenPayload = { id: string; sub?: string };
-const token = getToken();
-const decoded = token ? jwtDecode<TokenPayload>(token) : null;
-const id = decoded?.id;
+// Backend token payload: {"sub": "<user_id>", "username": "<username>"}
+type TokenPayload = { sub: string; username?: string };
 
 const ServerSidebar = ({
   getServer,
@@ -54,7 +57,7 @@ const ServerSidebar = ({
 
   const tokenForUser = getToken();
   const userName = tokenForUser
-    ? jwtDecode<TokenPayload>(tokenForUser).sub
+    ? jwtDecode<TokenPayload>(tokenForUser).username
     : undefined;
 
   return (
@@ -114,30 +117,35 @@ const ServerSidebar = ({
             },
           ]}
           onSubmit={async (values) => {
+            const token = getToken();
+            if (!token) {
+              console.error("No auth token found. User must be logged in.");
+              return;
+            }
+
             const payload: any = {
               name: String(values.name || "").trim(),
+              // description is not used by the backend create_server route,
+              // but we keep it in case the schema supports it later.
               description: String(values.description || "").trim(),
-              owner_id: id,
             };
 
             try {
+              // Backend: POST /servers (admin_id comes from current_user via token)
               const res = await fetch(
-                `${baseUrl}/chat/create_server`,
+                `${baseUrl}/servers`,
                 options("POST", token, payload)
               );
-              const ans = await res.json();
 
-              const user_id = id;
-              const server_id = ans.id;
-              const role = "admin";
-              const createServerUser = await fetch(
-                `${baseUrl}/chat/serverUser/${user_id}/${server_id}/${role}`,
-                options("POST", token)
-              );
-              const ans2 = await createServerUser.json();
-              // const main = await ans2.json();
-              console.log(ans2);
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                console.error("Failed to create server", err);
+                return;
+              }
+
+              await res.json();
               setShow(false);
+              // Refresh server list after successful creation
               getServer?.();
             } catch (error) {
               console.error(error);

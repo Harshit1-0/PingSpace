@@ -2,11 +2,11 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getToken } from "../store/authStore";
 import { jwtDecode } from "jwt-decode";
-import { baseUrl } from "../helper/constant";
-import { options } from "../helper/fetchOptions";
 import { useAuthStore } from "../store/authStore";
+import { baseUrl } from "../helper/constant";
 
-type TokenPayload = { id: string; sub?: string };
+// Backend token payload: {"sub": "<user_id>", "username": "<username>"}
+type TokenPayload = { sub: string };
 
 const JoinPage = () => {
   const [searchParams] = useSearchParams();
@@ -33,7 +33,7 @@ const JoinPage = () => {
 
     try {
       const decoded = jwtDecode<TokenPayload>(token);
-      const userId = decoded.id;
+      const userId = decoded.sub;
 
       if (!userId) {
         setError("Invalid authentication token.");
@@ -42,16 +42,26 @@ const JoinPage = () => {
 
       setLoading(true);
       setError(null);
+      const payload = {
+        user_id: userId,
+        server_id: serverId,
+        role: "member",
+      };
 
       // Join the server (role: "member" for regular invites)
-      const response = await fetch(
-        `${baseUrl}/chat/serverUser/${userId}/${serverId}/member`,
-        options("POST", token)
-      );
+      const option = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      };
+      const response = await fetch(`${baseUrl}/server/join`, option);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
+
         // Check if user is already a member
         if (response.status === 400 || response.status === 409) {
           setSuccess(true);
@@ -61,20 +71,25 @@ const JoinPage = () => {
           return;
         }
 
-        throw new Error(errorData.detail || errorData.message || "Failed to join server");
+        throw new Error(
+          errorData.detail || errorData.message || "Failed to join server"
+        );
       }
 
       const data = await response.json();
       console.log("Joined server:", data);
       setSuccess(true);
-      
+
       // Redirect to chat after a short delay
       setTimeout(() => {
         navigate("/chat");
       }, 1500);
     } catch (err: any) {
       console.error("Error joining server:", err);
-      setError(err.message || "An error occurred while joining the server. Please try again.");
+      setError(
+        err.message ||
+          "An error occurred while joining the server. Please try again."
+      );
       setLoading(false);
     }
   }, [serverId, navigate]);
@@ -103,7 +118,9 @@ const JoinPage = () => {
       <div className="auth-container">
         <div className="auth-card">
           <h1 className="brand">PingSpace</h1>
-          <div className="error-text">Invalid invite link. No server ID provided.</div>
+          <div className="error-text">
+            Invalid invite link. No server ID provided.
+          </div>
           <div className="muted" style={{ marginTop: "16px" }}>
             <a href="/">Go to home</a>
           </div>
@@ -116,14 +133,20 @@ const JoinPage = () => {
     <div className="auth-container">
       <div className="auth-card">
         <h1 className="brand">PingSpace</h1>
-        
+
         {success ? (
           <>
             <h2>Success!</h2>
             <p style={{ color: "var(--text)", marginTop: "12px" }}>
               You've successfully joined the server!
             </p>
-            <p style={{ color: "var(--muted)", fontSize: "14px", marginTop: "8px" }}>
+            <p
+              style={{
+                color: "var(--muted)",
+                fontSize: "14px",
+                marginTop: "8px",
+              }}
+            >
               Redirecting to chat...
             </p>
           </>

@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordRequestForm
-
+from typing import Annotated
 from Database.db import get_db
 from models.user import User
 from schemas.user_schema import UserOut, UserResponse , UserCreate
@@ -21,6 +21,8 @@ pwd_context = CryptContext(schemes=['bcrypt'], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 router = APIRouter(tags=["auth"])
+# db_dependencies = Annotated[Session, Depends(get_db)]
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -59,7 +61,7 @@ def decode_access_token(token: str):
 
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(token: str = Depends(oauth2_scheme), db : Session = Depends(get_db)) -> User:
     user_id = decode_access_token(token)
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:

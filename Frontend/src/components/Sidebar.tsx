@@ -1,11 +1,11 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState, useRef } from "react";
 import ServerSidebar from "./ServerSidebar";
 import { getToken } from "../store/authStore";
 import { baseUrl } from "../helper/constant";
 import { options } from "../helper/fetchOptions";
 import InputModal from "./InputModal";
 
-type Room = { name: string; id: string | number };
+type Room = { name: string; id: string | number; description?: string; server_id?: string };
 type Server = { name: string; id: string; owner_id: string };
 
 type SidebarProps = {
@@ -34,6 +34,7 @@ export default function Sidebar({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [activeServerId, setActiveServerID] = useState<string | undefined>();
   const [rooms, setRooms] = useState<Room[]>([]);
+  const serverWsRef = useRef<WebSocket | null>(null);
 
   // Find the active server based on activeServerId
   const activeServer = useMemo(() => {
@@ -41,15 +42,87 @@ export default function Sidebar({
     return server.find((s) => s.id === activeServerId);
   }, [activeServerId, server]);
   const getRoom = async () => {
-    const response = await fetch(
-      `${baseUrl}/chatroom/${activeServerId}`,
-      options("GET")
-    );
-    const data = await response.json();
-    activeServerId && setRooms(data);
+    if (!activeServerId) return;
+    const option = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken() || ""}`,
+      },
+    };
+
+    try {
+      const response = await fetch(`${baseUrl}/rooms/${activeServerId}`, option);
+      const data = await response.json();
+      setRooms(data);
+    } catch (error) {
+      console.error("Error fetching rooms:", error);
+    }
   };
+
+  // Connect to server WebSocket for real-time room updates
   useEffect(() => {
+    if (!activeServerId || !getToken()) return;
+
+    const token = getToken() || "";
+    const wsUrl = baseUrl.replace(/^http/, "ws");
+    
+    // Close existing connection if any
+    if (serverWsRef.current) {
+      serverWsRef.current.close();
+    }
+
+    // Connect to server WebSocket: /ws/server/{server_id}?token={token}
+    serverWsRef.current = new WebSocket(`${wsUrl}/ws/server/${activeServerId}?token=${token}`);
+
+    serverWsRef.current.onopen = () => {
+      console.log(`Connected to server ${activeServerId} WebSocket`);
+    };
+
+    serverWsRef.current.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        
+        // Handle room creation event
+        if (payload.type === "room_created" && payload.room) {
+          const newRoom: Room = {
+            id: payload.room.id,
+            name: payload.room.name,
+            description: payload.room.description,
+            server_id: payload.room.server_id,
+          };
+          
+          // Add new room to the list if it doesn't already exist
+          setRooms((prevRooms) => {
+            const exists = prevRooms.some((r) => r.id === newRoom.id);
+            if (!exists) {
+              return [...prevRooms, newRoom];
+            }
+            return prevRooms;
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+
+    serverWsRef.current.onerror = (error) => {
+      console.error("Server WebSocket error:", error);
+    };
+
+    serverWsRef.current.onclose = () => {
+      console.log(`Disconnected from server ${activeServerId} WebSocket`);
+    };
+
+    // Fetch initial rooms
     getRoom();
+
+    return () => {
+      if (serverWsRef.current) {
+        serverWsRef.current.close();
+        serverWsRef.current = null;
+      }
+    };
   }, [activeServerId]);
 
   const handleSeverID = (serverID: string) => {
@@ -79,15 +152,27 @@ export default function Sidebar({
     };
     try {
       const res = await fetch(
-        `${baseUrl}/create_room`,
+        `${baseUrl}/rooms`,
         options("POST", tokenString, payload)
       );
-      await res.json();
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Error creating room:", errorData);
+        return;
+      }
 
+      const newRoom = await res.json();
+      console.log("Room created:", newRoom);
+      
+      // Room will be added via WebSocket broadcast, but refresh to be safe
       setShow(false);
-      getRoom();
+      // Small delay to ensure WebSocket message arrives first
+      setTimeout(() => {
+        getRoom();
+      }, 100);
     } catch (error) {
-      console.error(error);
+      console.error("Error creating room:", error);
     }
   };
   const onNewRoom = () => {
